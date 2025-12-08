@@ -233,15 +233,7 @@ def Aggregation(
     if isinstance(operation, tuple):
         operation, arg_map = operation[0], operation[1]
 
-    def normalize(w: Union[common.Window, str]) -> common.Window:
-        if isinstance(w, str):
-            return window_utils._from_str(w)
-        elif isinstance(w, common.Window):
-            return w
-        else:
-            raise Exception("window should be either a string like '7d', '24h', or a Window type")
-
-    norm_windows = [normalize(w) for w in windows] if windows else None
+    norm_windows = [window_utils.normalize_window(w) for w in windows] if windows else None
 
     agg = ttypes.Aggregation(input_column, operation, arg_map, norm_windows, buckets)
 

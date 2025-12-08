@@ -1,3 +1,5 @@
+from typing import Union
+
 import gen_thrift.common.ttypes as common
 
 
@@ -46,3 +48,30 @@ def _from_str(s: str) -> common.Window:
         if "invalid literal for int()" in str(e):
             raise ValueError(f"Invalid numeric value in duration: {value}") from e
         raise e from None
+
+
+def normalize_window(w: Union[common.Window, str]) -> common.Window:
+    """
+    Normalizes a window specification to a common.Window object.
+
+    Accepts either a Window object directly or a string like "30d" or "24h".
+    This is used across the codebase (e.g., in GroupBy aggregations and TrainingSpec).
+
+    Args:
+        w: Either a common.Window object or a string like "7d", "24h"
+
+    Returns:
+        common.Window: The normalized window object
+
+    Raises:
+        TypeError: If the input is neither a string nor a Window object
+    """
+    if isinstance(w, str):
+        return _from_str(w)
+    elif isinstance(w, common.Window):
+        return w
+    else:
+        raise TypeError(
+            f"Window should be either a string like '7d', '24h', or a Window type, "
+            f"got {type(w).__name__}"
+        )
