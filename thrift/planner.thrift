@@ -72,6 +72,14 @@ struct ModelTransformsBackfillNode {
     2: optional api.ModelTransforms modelTransforms
 }
 
+struct CreateModelEndpointNode {
+    2: optional api.Model model
+}
+
+struct DeployModelNode {
+    2: optional api.Model model
+}
+
 struct ExternalSourceSensorNode {
     1: optional api.MetaData metaData
     2: optional common.TableDependency sourceTableDependency
@@ -95,6 +103,8 @@ union NodeContent {
     11: ExternalSourceSensorNode externalSourceSensor
     12: ModelTransformsUploadNode modelTransformsUpload
     13: ModelTransformsBackfillNode modelTransformsBackfill
+    14: CreateModelEndpointNode createModelEndpoint
+    15: DeployModelNode deployModel
 
     // groupBy nodes
     100: GroupByBackfillNode groupByBackfill
