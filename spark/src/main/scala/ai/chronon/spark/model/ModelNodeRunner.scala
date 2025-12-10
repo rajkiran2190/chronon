@@ -2,14 +2,14 @@ package ai.chronon.spark.model
 
 import ai.chronon.api._
 import ai.chronon.api.planner.NodeRunner
-import ai.chronon.online.{Api, DeployModelRequest, DeployModel}
+import ai.chronon.online._
 import ai.chronon.planner.{Node, NodeContent}
 import org.rogach.scallop.ScallopConf
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.jdk.CollectionConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 class ModelNodeRunner(api: Api) extends NodeRunner {
@@ -22,9 +22,46 @@ class ModelNodeRunner(api: Api) extends NodeRunner {
 
       case NodeContent._Fields.DEPLOY_MODEL => doDeployModel(conf, range)
 
+      case NodeContent._Fields.TRAIN_MODEL => doTrain(conf, range)
+
       case _ =>
         throw new IllegalArgumentException(
-          "Expected CreateModelEndpointNode or DeployModelNode content but got: " + conf.getClass.getSimpleName)
+          "Expected CreateModelEndpointNode or DeployModelNode or TrainModelNode content but got: " + conf.getClass.getSimpleName)
+    }
+  }
+
+  private def doTrain(conf: NodeContent, range: Option[PartitionRange]): Unit = {
+    val model = conf.getTrainModel.model
+    val modelName = model.metaData.name
+
+    val startTime = System.currentTimeMillis()
+    logger.info(s"Starting training for Model: $modelName")
+
+    val date = range.map(_.end).getOrElse {
+      throw new IllegalArgumentException("PartitionRange is required for model deployment (date)")
+    }
+    try {
+      val modelPlatformProvider = api.generateModelPlatformProvider
+      if (modelPlatformProvider == null) {
+        throw new IllegalStateException("ModelPlatformProvider is not configured in the API")
+      }
+      val modelBackend = validateModelBackend(model)
+      val modelPlatform = modelPlatformProvider.getPlatform(modelBackend, Map.empty)
+      val submitTrainingRequest = TrainingRequest(trainingSource = model.trainingConf.trainingDataSource,
+                                                  model = model,
+                                                  date = date,
+                                                  window = model.getTrainingConf.trainingDataWindow)
+      val trainingJobName = Await.result(modelPlatform.submitTrainingJob(submitTrainingRequest), 10.minutes)
+
+      // TODO: should hook this up with the orchestration's step checking instead of polling here
+      pollForJobCompletion(modelPlatform, SubmitTrainingJob, trainingJobName, 2.hours.toMillis)
+
+      val duration = (System.currentTimeMillis() - startTime) / 1000
+      logger.info(s"Successfully trained Model: $modelName (resource: $trainingJobName) in $duration seconds")
+    } catch {
+      case e: Exception =>
+        logger.error(s"Failed to train Model: $modelName", e)
+        throw e
     }
   }
 
@@ -56,6 +93,37 @@ class ModelNodeRunner(api: Api) extends NodeRunner {
         logger.error(s"Failed to create endpoint for Model: $modelName", e)
         throw e
     }
+  }
+
+  private def pollForJobCompletion(modelPlatform: ModelPlatform,
+                                   jobType: ModelOperation,
+                                   jobId: String,
+                                   maxWaitTimeMs: Long): ModelJobStatus = {
+    def isTerminalState(status: JobStatusType): Boolean = {
+      status == JobStatusType.SUCCEEDED ||
+      status == JobStatusType.FAILED ||
+      status == JobStatusType.CANCELLED
+    }
+
+    val pollInterval = 30000 // 30 seconds
+    var elapsedTime = 0L
+    var currentState = JobStatusType.UNKNOWN
+
+    while (!isTerminalState(currentState)) {
+      if (elapsedTime > maxWaitTimeMs) {
+        throw new RuntimeException(s"Timeout waiting for job: $jobId")
+      }
+
+      logger.info(s"Waiting for job. Current state: $currentState, elapsed: ${elapsedTime / 1000}s")
+      Thread.sleep(pollInterval)
+      elapsedTime += pollInterval
+
+      val currentStatus = Await.result(modelPlatform.getJobStatus(jobType, jobId), 10.seconds)
+      currentState = currentStatus.jobStatusType
+    }
+
+    val finalStatus = Await.result(modelPlatform.getJobStatus(jobType, jobId), 10.seconds)
+    finalStatus
   }
 
   private def doDeployModel(conf: NodeContent, range: Option[PartitionRange]): Unit = {
@@ -186,8 +254,8 @@ object ModelNodeRunner {
       val api = instantiateApi(onlineClass, props)
 
       implicit val partitionSpec: PartitionSpec = PartitionSpec.daily
-      val range = Some(PartitionRange(null, endDs))
 
+      val range = Some(PartitionRange(null, endDs))
       val runner = new ModelNodeRunner(api)
       runner.run(metadata, node.content, range)
     }

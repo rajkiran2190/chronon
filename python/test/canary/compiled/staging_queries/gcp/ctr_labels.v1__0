@@ -1,31 +1,6 @@
 {
-  "deploymentConf": {
-    "containerConfig": {
-      "image": "us-docker.pkg.dev/vertex-ai/prediction/xgboost-cpu.2-1:latest"
-    },
-    "endpointConfig": {
-      "endpointName": "test_ctr_model"
-    },
-    "resourceConfig": {
-      "machineType": "n1-standard-4",
-      "maxReplicaCount": 10,
-      "minReplicaCount": 3
-    },
-    "rolloutStrategy": {
-      "rolloutType": 2
-    }
-  },
-  "inferenceSpec": {
-    "modelBackend": 0,
-    "modelBackendParams": {
-      "model_name": "test_ctr_model",
-      "model_type": "custom"
-    }
-  },
-  "inputMapping": {
-    "instance": "named_struct('user_id_click_event_average_7d', user_id_click_event_average_7d, 'listing_price_cents', listing_id_price_cents, 'price_log', price_log, 'price_bucket', price_bucket)"
-  },
   "metaData": {
+    "customJson": "{\"airflowDependencies\": [{\"name\": \"wf_data_gcp_demo_derivations_v1__2_with_offset_0\", \"spec\": \"data.gcp_demo_derivations_v1__2/ds={{ macros.ds_add(ds, 0) }}\"}]}",
     "executionInfo": {
       "clusterConf": {
         "modeClusterConfigs": {
@@ -89,64 +64,34 @@
           "PARTITION_FORMAT": "yyyy-MM-dd",
           "VERSION": "latest"
         }
-      }
+      },
+      "scheduleCron": "@daily"
     },
-    "name": "gcp.click_through_rate.ctr_model__1.0",
+    "name": "gcp.ctr_labels.v1__0",
     "outputNamespace": "data",
-    "sourceFile": "models/gcp/click_through_rate.py",
+    "sourceFile": "staging_queries/gcp/ctr_labels.py",
     "team": "gcp",
-    "version": "1.0"
+    "version": "0"
   },
-  "modelArtifactBaseUri": "gs://zipline-warehouse-models",
-  "outputMapping": {
-    "ctr": "score"
-  },
-  "trainingConf": {
-    "image": "us-docker.pkg.dev/vertex-ai/training/xgboost-cpu.2-1:latest",
-    "jobConfigs": {
-      "eta": "0.1",
-      "max-depth": "4",
-      "n-samples": "1000",
-      "num-boost-round": "50"
-    },
-    "pythonModule": "trainer.train",
-    "resourceConfig": {
-      "machineType": "n1-standard-4",
-      "maxReplicaCount": 1,
-      "minReplicaCount": 1
-    },
-    "schedule": "@daily",
-    "trainingDataSource": {
-      "events": {
-        "query": {
-          "selects": {
-            "ds": "ds",
-            "label": "label",
-            "listing_price_cents": "listing_id_price_cents",
-            "price_bucket": "price_bucket",
-            "price_log": "price_log",
-            "user_id_click_event_average_7d": "user_id_click_event_average_7d"
-          },
-          "startPartition": "2025-07-01"
+  "query": "\nSELECT \n    *,\n    case when rand() < 0.5 then 0 else 1 end as label\nFROM data.gcp_demo_derivations_v1__2\nWHERE ds BETWEEN {{ start_date }} AND {{ end_date }}\n",
+  "tableDependencies": [
+    {
+      "endOffset": {
+        "length": 0,
+        "timeUnit": 1
+      },
+      "startOffset": {
+        "length": 0,
+        "timeUnit": 1
+      },
+      "tableInfo": {
+        "partitionColumn": "ds",
+        "partitionInterval": {
+          "length": 1,
+          "timeUnit": 1
         },
-        "table": "data.gcp_ctr_labels_v1__0"
+        "table": "data.gcp_demo_derivations_v1__2"
       }
-    },
-    "trainingDataWindow": {
-      "length": 1,
-      "timeUnit": 1
     }
-  },
-  "valueSchema": {
-    "kind": 13,
-    "name": "model_value_schema",
-    "params": [
-      {
-        "dataType": {
-          "kind": 6
-        },
-        "name": "score"
-      }
-    ]
-  }
+  ]
 }

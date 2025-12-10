@@ -19,7 +19,6 @@ package ai.chronon.api
 import ai.chronon.api.DataType.toTDataType
 import ai.chronon.api.Extensions.WindowUtils
 import ai.chronon.api.ScalaJavaConversions._
-import ai.chronon.api.TimeUnit
 import ai.chronon.observability.DriftSpec
 
 // mostly used by tests to define confs easily
@@ -461,7 +460,8 @@ object Builders {
         inferenceSpec: InferenceSpec = null,
         inputMapping: Map[String, String] = null,
         outputMapping: Map[String, String] = null,
-        valueSchema: TDataType = null
+        valueSchema: TDataType = null,
+        trainingSpec: TrainingSpec = null
     ): Model = {
       val result = new Model()
       if (metaData != null)
@@ -474,6 +474,8 @@ object Builders {
         result.setOutputMapping(outputMapping.toJava)
       if (valueSchema != null)
         result.setValueSchema(valueSchema)
+      if (trainingSpec != null)
+        result.setTrainingConf(trainingSpec)
       result
     }
   }
@@ -490,6 +492,17 @@ object Builders {
         result.setModelBackendParams(modelBackendParams.toJava)
       if (resourceConfig != null)
         result.setResourceConfig(resourceConfig)
+      result
+    }
+  }
+
+  object TrainingSpec {
+    def apply(
+        trainingDataSource: Source = null
+    ): TrainingSpec = {
+      val result = new TrainingSpec()
+      if (trainingDataSource != null)
+        result.setTrainingDataSource(trainingDataSource)
       result
     }
   }

@@ -61,6 +61,7 @@ class InferenceSpec:
 
 @dataclass
 class TrainingSpec:
+    # TODO: may want to try to support staging query as a training_data_source
     training_data_source: Optional[ANY_SOURCE_TYPE] = None
     training_data_window: Optional[Union[common.Window, str]] = None
     schedule: Optional[str] = None
@@ -336,7 +337,7 @@ def ModelTransforms(
 
     # Normalize all sources to ensure they are properly wrapped
     normalized_sources = [normalize_source(source) for source in sources]
-    
+
     # Create metadata
     meta_data = ttypes.MetaData(
         outputNamespace=output_namespace,
@@ -345,7 +346,7 @@ def ModelTransforms(
         tableProperties=table_properties,
         version=str(version),
     )
-    
+
     # Create key schema if key_fields are provided
     key_schema = None
     if key_fields:
@@ -359,8 +360,8 @@ def ModelTransforms(
         metaData=meta_data,
         keySchema=key_schema,
     )
-    
+
     # Add the table property for output table name generation
     model_transforms.__class__.table = property(lambda self: _get_model_transforms_output_table_name(self, full_name=True))
-    
+
     return model_transforms

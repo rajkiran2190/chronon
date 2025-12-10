@@ -80,6 +80,10 @@ struct DeployModelNode {
     2: optional api.Model model
 }
 
+struct TrainModelNode {
+    2: optional api.Model model
+}
+
 struct ExternalSourceSensorNode {
     1: optional api.MetaData metaData
     2: optional common.TableDependency sourceTableDependency
@@ -105,6 +109,7 @@ union NodeContent {
     13: ModelTransformsBackfillNode modelTransformsBackfill
     14: CreateModelEndpointNode createModelEndpoint
     15: DeployModelNode deployModel
+    16: TrainModelNode trainModel
 
     // groupBy nodes
     100: GroupByBackfillNode groupByBackfill

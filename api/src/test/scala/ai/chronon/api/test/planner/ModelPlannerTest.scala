@@ -1,5 +1,6 @@
 package ai.chronon.api.test.planner
 
+import ai.chronon.api.Builders.Query
 import ai.chronon.api.{Builders => B, _}
 import ai.chronon.api.planner.ModelPlanner
 import ai.chronon.planner.Mode
@@ -12,6 +13,22 @@ class ModelPlannerTest extends AnyFlatSpec with Matchers {
 
   private implicit val testPartitionSpec: PartitionSpec = PartitionSpec.daily
 
+  private def buildModelWithTrainingSpec(name: String): Model = {
+    B.Model(
+      metaData = B.MetaData(
+        name = name,
+        namespace = "test_namespace"
+      ),
+      trainingSpec = B.TrainingSpec(
+        trainingDataSource = B.Source.events(table = "training_data_table", query = Query())
+      ),
+      inferenceSpec = B.InferenceSpec(
+        modelBackend = ModelBackend.VertexAI,
+        modelBackendParams = Map("project" -> "test-project", "region" -> "us-central1")
+      )
+    )
+  }
+
   private def buildModel(name: String): Model = {
     B.Model(
       metaData = B.MetaData(
@@ -23,6 +40,33 @@ class ModelPlannerTest extends AnyFlatSpec with Matchers {
         modelBackendParams = Map("project" -> "test-project", "region" -> "us-central1")
       )
     )
+  }
+
+  "ModelPlanner" should "create trainModel, createEndpoint and deployModel nodes when trainingSpec is present" in {
+    val model = buildModelWithTrainingSpec("test_model_with_training")
+    val planner = new ModelPlanner(model)
+    val plan = planner.buildPlan
+
+    // Should create plan with all three nodes
+    plan.nodes.asScala should have size 3
+
+    // Find all nodes
+    val trainModelNode = plan.nodes.asScala.find(_.content.isSetTrainModel)
+    val createEndpointNode = plan.nodes.asScala.find(_.content.isSetCreateModelEndpoint)
+    val deployModelNode = plan.nodes.asScala.find(_.content.isSetDeployModel)
+
+    trainModelNode should be(defined)
+    createEndpointNode should be(defined)
+    deployModelNode should be(defined)
+
+    // Verify dependencies
+    val createEndpointDeps = createEndpointNode.get.metaData.executionInfo.tableDependencies.asScala
+    createEndpointDeps should have size 1
+    createEndpointDeps.head.tableInfo.table shouldBe trainModelNode.get.metaData.executionInfo.outputTableInfo.table
+
+    val deployDeps = deployModelNode.get.metaData.executionInfo.tableDependencies.asScala
+    deployDeps should have size 1
+    deployDeps.head.tableInfo.table shouldBe createEndpointNode.get.metaData.executionInfo.outputTableInfo.table
   }
 
   "ModelPlanner" should "create both createEndpoint and deployModel nodes" in {

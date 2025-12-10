@@ -11,6 +11,9 @@ from typing import Dict, List, Tuple
 import os
 from pathlib import Path
 
+from google.cloud import bigquery
+import os
+
 
 def generate_synthetic_training_data(n_samples: int = 1000, seed: int = 42) -> Tuple[pd.DataFrame, List[int]]:
     """
@@ -74,6 +77,25 @@ def generate_synthetic_training_data(n_samples: int = 1000, seed: int = 42) -> T
     X_train_df = pd.DataFrame(X_train_data)
     return X_train_df, y_train
 
+def get_training_data_df(zipline_ctr_label_table: str = 'canary-443022.data.gcp_demo_derivations_v1__2', start_ds: str = '2025-10-03', end_ds: str = '2025-10-03') -> Tuple[pd.DataFrame, List[int]]:
+    client = bigquery.Client()
+    # Note: If your environment doesn't imply a project, explicitly pass it: bigquery.Client(project="your-project-id")
+
+    # 2. Define your Query
+    sql_query = f"""
+        SELECT user_id_click_event_average_7d, listing_id_price_cents AS listing_price_cents, price_log, price_bucket, label
+        FROM ${zipline_ctr_label_table} where ds BETWEEN '{start_ds}' AND '{end_ds}'
+    """
+
+    # 3. Run the query and convert to DataFrame
+    df = client.query(sql_query).to_dataframe()
+
+    # Split to X_train_df, y_train
+    x_train_df = df.drop(columns=['label'])
+    y_train = df['label'].tolist()
+    return x_train_df, y_train
+
+
 
 def train_model(
     X_train: pd.DataFrame,
@@ -108,7 +130,7 @@ def train_model(
         'seed': seed
     }
 
-    dtrain = xgb.DMatrix(X_train.values, label=y_train) 
+    dtrain = xgb.DMatrix(X_train.values, label=y_train)
     print(f"Training model with params: {params}")
 
     model = xgb.train(params, dtrain, num_boost_round=num_boost_round)
@@ -154,13 +176,13 @@ def save_model(model: xgb.Booster, output_path: str):
 
 def main():
     parser = argparse.ArgumentParser(description='Train XGBoost CTR model')
-    
+
     # Data parameters
     parser.add_argument('--n-samples', type=int, default=1000,
                         help='Number of training samples to generate')
     parser.add_argument('--seed', type=int, default=42,
                         help='Random seed for reproducibility')
-    
+
     # Model hyperparameters
     parser.add_argument('--max-depth', type=int, default=4,
                         help='Maximum tree depth')
@@ -168,14 +190,14 @@ def main():
                         help='Learning rate')
     parser.add_argument('--num-boost-round', type=int, default=50,
                         help='Number of boosting rounds')
-    
+
     # Output parameters
-    parser.add_argument('--model-dir', type=str, 
+    parser.add_argument('--model-dir', type=str,
                         default=os.environ.get('AIP_MODEL_DIR', './model_output'),
                         help='Directory to save the model (defaults to AIP_MODEL_DIR for Vertex AI)')
-    
+
     args = parser.parse_args()
-    
+
     print("="*80)
     print("XGBoost CTR Model Training")
     print("="*80)
@@ -187,16 +209,17 @@ def main():
     print(f"  Model output: {args.model_dir}")
     print(f"  Random seed: {args.seed}")
     print("="*80)
-    
-    # Generate training data
-    print("\n1. Generating synthetic training data...")
-    X_train, y_train = generate_synthetic_training_data(
-        n_samples=args.n_samples,
-        seed=args.seed
-    )
-    print(f"   Generated {len(X_train)} samples")
-    print(f"   Positive class ratio: {sum(y_train)/len(y_train):.2%}")
 
+    # Generate training data
+    # print("\n1. Generating synthetic training data...")
+    # X_train, y_train = generate_synthetic_training_data(
+    #     n_samples=args.n_samples,
+    #     seed=args.seed
+    # )
+    # print(f"   Generated {len(X_train)} samples")
+    # print(f"   Positive class ratio: {sum(y_train)/len(y_train):.2%}")
+
+    X_train, y_train = get_training_data_df()
     # Train model
     print("\n2. Training model...")
     model = train_model(
@@ -219,7 +242,7 @@ def main():
     pred = model.predict(dmatrix)[0]
     print(f"   Sample prediction: {pred:.4f}")
     print(f"   Actual label: {y_train[0]}")
-    
+
     print("\n" + "="*80)
     print("Training complete!")
     print("="*80)

@@ -1,9 +1,9 @@
-from joins.gcp import demo
+from staging_queries.gcp import ctr_labels
 
 from ai.chronon.model import Model, ModelBackend, InferenceSpec, ModelTransforms, TrainingSpec, ResourceConfig, DeploymentSpec, ServingContainerConfig, EndpointConfig, RolloutStrategy, DeploymentStrategyType
 from ai.chronon.query import Query, selects
 from ai.chronon.group_by import Window, TimeUnit
-from ai.chronon.source import JoinSource
+from ai.chronon.source import JoinSource, EventSource
 
 from ai.chronon.data_types import DataType
 
@@ -12,7 +12,17 @@ This model takes into account features computed as part of the demo.derivations_
 and uses it as an input to predict click_through_rate.
 """
 
-source = JoinSource(join=demo.derivations_v1)
+label_source = EventSource(table=ctr_labels.v1.table, query = Query(
+    selects= selects(
+        user_id_click_event_average_7d="user_id_click_event_average_7d",
+        listing_price_cents="listing_id_price_cents",
+        price_log="price_log",
+        price_bucket="price_bucket",
+        label="label",
+        ds="ds"
+    ),
+    start_partition="2025-07-01",
+))
 
 ctr_model = Model(
     version="1.0",
@@ -37,7 +47,7 @@ ctr_model = Model(
     model_artifact_base_uri="gs://zipline-warehouse-models",
     # Model build is expected to be in - gs://zipline-warehouse-models/builds/test_ctr_model-1.0.tar.gz
     training_conf=TrainingSpec(
-        training_data_source=source,
+        training_data_source=label_source,
         training_data_window=Window(length=1, time_unit=TimeUnit.DAYS),
         schedule="@daily",
         image="us-docker.pkg.dev/vertex-ai/training/xgboost-cpu.2-1:latest",
