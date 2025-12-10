@@ -36,7 +36,7 @@ We can now use this to start up the feature service:
 ```
 
 A few things to call out so you can customize:
-- Choose your port (this is where you'll hit your webservice with traffic)
+- Choose your port (this is where you'll hit your webservice with traffic).
 - Update the example_config.json (specifically confirm the path to the mongo-online-impl assembly jar matches your setup)
 
 If you'd like some real data to query from the feature service, make sure to run through the relevant steps of the 

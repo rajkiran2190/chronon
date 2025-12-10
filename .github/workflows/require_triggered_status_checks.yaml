@@ -17,4 +17,4 @@ jobs:
         uses: poseidon/wait-for-status-checks@v0.6.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          delay: "10s"
+          delay: "120s"
