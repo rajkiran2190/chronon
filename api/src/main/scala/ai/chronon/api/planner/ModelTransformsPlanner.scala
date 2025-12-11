@@ -1,7 +1,7 @@
 package ai.chronon.api.planner
 
-import ai.chronon.api.{ModelTransforms, PartitionSpec}
-import ai.chronon.api.Extensions.MetadataOps
+import ai.chronon.api.{ModelTransforms, PartitionSpec, TableDependency, TableInfo}
+import ai.chronon.api.Extensions.{MetadataOps, WindowUtils}
 import ai.chronon.api.ScalaJavaConversions.IterableOps
 import ai.chronon.api.planner.TableDependencies.{fromSource, fromTable}
 import ai.chronon.planner.{ConfPlan, ModelTransformsBackfillNode, ModelTransformsUploadNode, Node}
@@ -25,7 +25,7 @@ class ModelTransformsPlanner(modelTransforms: ModelTransforms)(implicit outputPa
   }
 
   def backfillNode: Node = {
-    val tableDeps =
+    val sourceDeps =
       Option(modelTransforms.sources)
         .map(_.toScala.toSeq)
         .getOrElse(Seq.empty)
@@ -39,6 +39,29 @@ class ModelTransformsPlanner(modelTransforms: ModelTransforms)(implicit outputPa
             fromSource(source)
           }
         }
+
+    // add model dependencies - we depend on the deployed model endpoint for models that are custom and trained by us
+    val modelDeps = Option(modelTransforms.models)
+      .map(_.toScala.toSeq)
+      .getOrElse(Seq.empty)
+      .flatMap { model =>
+        if (model.isSetTrainingConf) {
+          val deployNodeName = model.metaData.outputTable + "__model_deploy"
+          val deployNodeTableDep = new TableDependency()
+            .setTableInfo(
+              new TableInfo()
+                .setTable(deployNodeName)
+            )
+            .setStartOffset(WindowUtils.zero())
+            .setEndOffset(WindowUtils.zero())
+            .setIsSoftNodeDependency(true)
+          Some(deployNodeTableDep)
+        } else {
+          None
+        }
+      }
+
+    val tableDeps = sourceDeps ++ modelDeps
 
     val metaData =
       MetaDataUtils.layer(

@@ -1,8 +1,8 @@
 package ai.chronon.online.fetcher
 
 import ai.chronon.api
-import ai.chronon.api.DataType
-import ai.chronon.api.Extensions.ThrowableOps
+import ai.chronon.api.{DataType, Model, StructType}
+import ai.chronon.api.Extensions.{MetadataOps, ThrowableOps}
 import ai.chronon.online._
 import ai.chronon.online.fetcher.Fetcher.{Request, Response}
 import ai.chronon.online.metrics.Metrics
@@ -207,15 +207,30 @@ class ModelTransformsFetcher(modelPlatformProvider: ModelPlatformProvider, debug
 
               // predictionOutput is already the Map[String, AnyRef] from the prediction JSON object
               val postProcessStartTime = System.currentTimeMillis()
-              val valueSchema = Option(model.valueSchema).map(api.DataType.fromTDataType)
-              val modelResults = applyMapping(model.outputMapping,
-                                              predictionOutput,
-                                              valueSchema,
-                                              s"output_mapping_${model.metaData.name}")
+
+              // Prefix raw model output keys with model name to match ModelTransformsJob behavior
+              val modelName = model.metaData.cleanName
+              val prefixedPredictionOutput = predictionOutput.map { case (k, v) => s"${modelName}__$k" -> v }
+
+              val prefixedValueSchema = computePrefixedValueSchema(model, modelName)
+              val mappedResults = applyMapping(model.outputMapping,
+                                               prefixedPredictionOutput,
+                                               prefixedValueSchema,
+                                               s"output_mapping_${model.metaData.name}")
+
+              // Prefix the output mapping result keys as well
+              // Only prefix if there was an output mapping, otherwise the keys are already prefixed
+              val hasOutputMapping = Option(model.outputMapping).exists(!_.isEmpty)
+              val modelResults = if (hasOutputMapping) {
+                mappedResults.map { case (k, v) => s"${modelName}__$k" -> v }
+              } else {
+                mappedResults
+              }
+
               if (debug) {
                 logger.info(
-                  s"Model ${model.metaData.name} output mapping. Value schema: $valueSchema\n model_output = $predictionOutput\n " +
-                    s"final_output = $modelResults")
+                  s"Model ${model.metaData.name} output mapping. Value schema: $prefixedValueSchema\n model_output = $predictionOutput\n " +
+                    s"prefixed_output = $prefixedPredictionOutput\n mapped_output = $mappedResults\n final_output = $modelResults")
               }
               ctx.distribution("model_postprocess.latency.millis", System.currentTimeMillis() - postProcessStartTime)
 
@@ -237,6 +252,23 @@ class ModelTransformsFetcher(modelPlatformProvider: ModelPlatformProvider, debug
         ctx.incrementException(exception)
         Future.failed(exception)
     }
+  }
+
+  // We prefix value schema fields with the sanitized model name to match the ModelTransformsJob behavior
+  // e.g. if model name is "my model", and value schema has field "score", we prefix to "my_model__score"
+  // This is done to ensure no collisions in the final output when multiple models are used
+  private def computePrefixedValueSchema(model: Model, modelName: String) = {
+    val valueSchema = Option(model.valueSchema).map { schema =>
+      DataType.fromTDataType(schema) match {
+        case structType: StructType =>
+          val prefixedFields = structType.fields.map { field =>
+            field.copy(name = s"${modelName}__${field.name}")
+          }
+          api.StructType(s"${structType.name}_prefixed", prefixedFields)
+        case other => other
+      }
+    }
+    valueSchema
   }
 
   private def applyMapping(inputMapping: util.Map[String, String],

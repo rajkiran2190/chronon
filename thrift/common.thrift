@@ -109,6 +109,8 @@ struct TableDependency {
     3: optional Window endOffset
     4: optional string startCutOff
     5: optional string endCutOff
+    // indicates a soft dependency at the node level that doesn't warrant a table presence check
+    6: optional bool isSoftNodeDependency
 
     /**
     * JoinParts could use data from batch backfill-s or upload tables when available

@@ -51,10 +51,10 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
     // Verify responses
     whenReady(responseFuture) { responses =>
       responses should have size 1
-      
+
       val response = responses.head
       response.request.name shouldBe "test_transform"
-      response.values shouldBe Success(Map("score" -> 0.85))
+      response.values shouldBe Success(Map("test_model__score" -> 0.85))
     }
   }
 
@@ -94,9 +94,9 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
       callTrackingPlatform.uniqueInputsProcessed shouldBe 2
       
       // Check responses
-      responses(0).values shouldBe Success(Map("score" -> 0.9))
-      responses(1).values shouldBe Success(Map("score" -> 0.7))
-      responses(2).values shouldBe Success(Map("score" -> 0.9))
+      responses(0).values shouldBe Success(Map("scorer__score" -> 0.9))
+      responses(1).values shouldBe Success(Map("scorer__score" -> 0.7))
+      responses(2).values shouldBe Success(Map("scorer__score" -> 0.9))
     }
   }
 
@@ -131,12 +131,12 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
       responses should have size 1
       
       val expectedResult = Map(
-        "prediction" -> "positive",
+        "model1__prediction" -> "positive",
         "user_id" -> "user123",
         "session_id" -> "sess456"
         // "extra" should not be included as it's not in passthroughFields
       )
-      
+
       responses.head.values shouldBe Success(expectedResult)
     }
   }
@@ -183,24 +183,24 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
       response1.request.name shouldBe "test1"
       response1.values should be a 'success
       val values1 = response1.values.get
-      
-      values1 should contain key "embeddings"
-      values1 should contain key "score"
-      values1 should contain key "category"
-      
-      values1("embeddings") shouldBe Map("values" -> Seq(0.1, 0.2, 0.3))
-      values1("score") shouldBe 0.85
-      values1("category") shouldBe "premium"
-      
+
+      values1 should contain key "embedding_model__embeddings"
+      values1 should contain key "scoring_model__score"
+      values1 should contain key "classification_model__category"
+
+      values1("embedding_model__embeddings") shouldBe Map("values" -> Seq(0.1, 0.2, 0.3))
+      values1("scoring_model__score") shouldBe 0.85
+      values1("classification_model__category") shouldBe "premium"
+
       // Check second response
-      val response2 = responses(1) 
+      val response2 = responses(1)
       response2.request.name shouldBe "test2"
       response2.values should be a 'success
       val values2 = response2.values.get
-      
-      values2("embeddings") shouldBe Map("values" -> Seq(0.4, 0.5, 0.6))
-      values2("score") shouldBe 0.72
-      values2("category") shouldBe "standard"
+
+      values2("embedding_model__embeddings") shouldBe Map("values" -> Seq(0.4, 0.5, 0.6))
+      values2("scoring_model__score") shouldBe 0.72
+      values2("classification_model__category") shouldBe "standard"
     }
   }
 
@@ -224,8 +224,8 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
         "model_session" -> "session_id"      // model expects "model_session", we have "session_id"
       ),
       outputMapping = Map(
-        "prediction" -> "model_prediction",  // model returns "model_prediction", we want "prediction"
-        "confidence" -> "model_confidence"   // model returns "model_confidence", we want "confidence"
+        "prediction" -> "mapping_model__model_prediction",  // model returns "model_prediction" (prefixed as "mapping_model__model_prediction"), we want "prediction"
+        "confidence" -> "mapping_model__model_confidence"   // model returns "model_confidence" (prefixed as "mapping_model__model_confidence"), we want "confidence"
       ),
       valueSchema = outputSchema
     )
@@ -261,10 +261,10 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
       response.values should be a 'success
       
       val expectedResult = Map(
-        "prediction" -> "positive",    // output mapping applied: model_prediction -> prediction
-        "confidence" -> 0.95           // output mapping applied: model_confidence -> confidence
+        "mapping_model__prediction" -> "positive",    // output mapping applied: model_prediction -> prediction, then prefixed
+        "mapping_model__confidence" -> 0.95           // output mapping applied: model_confidence -> confidence, then prefixed
       )
-      
+
       response.values.get shouldBe expectedResult
     }
   }
@@ -320,11 +320,13 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
       response.values should be a 'success
       
       val values = response.values.get
-      
-      // Working models should have their results
-      values should contain key "working_result"
-      values("working_result") shouldBe "success"
-      
+
+      // Working models should have their results (prefixed with model name)
+      values should contain key "working_model_1__working_result"
+      values("working_model_1__working_result") shouldBe "success"
+      values should contain key "working_model_2__working_result"
+      values("working_model_2__working_result") shouldBe "success"
+
       // Failing model should have error feature
       values should contain key "failing_model_exception"
       values("failing_model_exception").toString should include("Model inference failed")
@@ -369,9 +371,9 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
       response.values should be a 'success
       
       val values = response.values.get
-      values should contain key "prediction"
-      values("prediction") shouldBe "success"
-      
+      values should contain key "join_only_model__prediction"
+      values("join_only_model__prediction") shouldBe "success"
+
       // Verify that the request keys only include original keys
       response.request.keys shouldBe Map("user_id" -> "user123")
     }
@@ -428,15 +430,15 @@ class ModelTransformsFetcherTest extends AnyFlatSpec with Matchers with ScalaFut
       
       // Check successful join + model transform responses (positions 0, 2, 4)
       responses(0).values should be a 'success
-      responses(0).values.get shouldBe Map("score" -> 0.8)
+      responses(0).values.get shouldBe Map("mixed_test_model__score" -> 0.8)
       responses(0).request.keys shouldBe Map("original_key" -> "orig1")
-      
+
       responses(2).values should be a 'success
-      responses(2).values.get shouldBe Map("score" -> 0.9)
+      responses(2).values.get shouldBe Map("mixed_test_model__score" -> 0.9)
       responses(2).request.keys shouldBe Map("original_key" -> "orig3")
-      
+
       responses(4).values should be a 'success
-      responses(4).values.get shouldBe Map("score" -> 0.7)
+      responses(4).values.get shouldBe Map("mixed_test_model__score" -> 0.7)
       responses(4).request.keys shouldBe Map("original_key" -> "orig5")
       
       // Check failed join responses (positions 1, 3) - should propagate join failures and preserve original request

@@ -287,4 +287,60 @@ class ModelTransformsPlannerTest extends AnyFlatSpec with Matchers {
     tableNames should contain("test_namespace.test_table_1")
     tableNames should contain("test_namespace.test_join_output")
   }
+
+  it should "create backfill node with model dependencies when models have training configs" in {
+    val source = B.Source.events(
+      query = B.Query(),
+      table = "test_namespace.test_table"
+    )
+
+    // Create a model with training config
+    val modelWithTraining = B.Model(
+      metaData = B.MetaData(
+        name = "test_model_with_training",
+        namespace = "test_namespace"
+      ),
+      trainingSpec = B.TrainingSpec(
+        trainingDataSource = B.Source.events(table = "training_data_table", query = B.Query())
+      ),
+      inferenceSpec = B.InferenceSpec(
+        modelBackend = ModelBackend.VertexAI,
+        modelBackendParams = Map("project" -> "test-project")
+      )
+    )
+
+    // Create a model without training config
+    val modelWithoutTraining = B.Model(
+      metaData = B.MetaData(
+        name = "test_model_without_training",
+        namespace = "test_namespace"
+      ),
+      inferenceSpec = B.InferenceSpec(
+        modelBackend = ModelBackend.VertexAI,
+        modelBackendParams = Map("project" -> "test-project")
+      )
+    )
+
+    val modelTransforms = B.ModelTransforms(
+      metaData = B.MetaData(
+        name = "test_model_transforms_with_model_deps",
+        namespace = "test_namespace"
+      ),
+      sources = Seq(source),
+      models = Seq(modelWithTraining, modelWithoutTraining)
+    )
+
+    val planner = new ModelTransformsPlanner(modelTransforms)
+    val backfillNode = planner.backfillNode
+
+    // Verify table dependencies include both the source and the deployed model node
+    val deps = backfillNode.metaData.executionInfo.tableDependencies.asScala
+    deps should have size 2
+
+    val tableNames = deps.map(_.tableInfo.table).toSet
+    // Should include the source table
+    tableNames should contain("test_namespace.test_table")
+    // Should include the deployed model node for the model with training config
+    tableNames should contain("test_namespace.test_model_with_training__model_deploy")
+  }
 }

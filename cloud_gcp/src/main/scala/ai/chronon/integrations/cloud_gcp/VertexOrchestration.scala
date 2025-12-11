@@ -96,7 +96,7 @@ class VertexOrchestration(project: String, location: String) extends Serializabl
 
   // display names are what we have users specify which are different from the endpoint resource names
   // so we need to list and find the right one
-  private def findEndpointByName(endpointName: String): Option[String] = {
+  def findEndpointByName(endpointName: String): Option[String] = {
     try {
       val parent = LocationName.of(project, location)
 

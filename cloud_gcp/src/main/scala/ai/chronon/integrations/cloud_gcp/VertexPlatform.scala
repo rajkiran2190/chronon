@@ -16,6 +16,7 @@ import io.vertx.core.Vertx
 import io.vertx.ext.web.client.WebClient
 import org.slf4j.{Logger, LoggerFactory}
 
+import java.util.concurrent.ConcurrentHashMap
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 import scala.jdk.CollectionConverters._
@@ -38,6 +39,8 @@ class VertexPlatform(project: String, location: String, webClient: Option[WebCli
     "publisher" -> s"https://$location-aiplatform.googleapis.com/v1/projects/$project/locations/$location/publishers/google/models/%s:predict",
     "custom" -> s"https://$location-aiplatform.googleapis.com/v1/projects/$project/locations/$location/endpoints/%s:predict"
   )
+
+  private val endpointNameToIdCache = new ConcurrentHashMap[String, String]()
 
   override def predict(predictRequest: PredictRequest): Future[PredictResponse] = {
     val promise = Promise[PredictResponse]()
@@ -69,7 +72,18 @@ class VertexPlatform(project: String, location: String, webClient: Option[WebCli
           return promise.future
       }
 
-      val url = urlTemplate.format(modelName)
+      val url = if (modelType == "custom") {
+        val endpointIdOrNull = lookupCustomEndpointId(modelName)
+        if (endpointIdOrNull == null) {
+          promise.success(
+            PredictResponse(predictRequest,
+                            Failure(new IllegalArgumentException(s"Endpoint not found for model: $modelName"))))
+          return promise.future
+        }
+
+        urlTemplate.format(endpointIdOrNull)
+      } else
+        urlTemplate.format(modelName)
 
       // Validate all inputs have 'instance' key
       val missingInstanceIndices = predictRequest.inputRequests.zipWithIndex.collect {
@@ -123,5 +137,19 @@ class VertexPlatform(project: String, location: String, webClient: Option[WebCli
 
   override def deployModel(deployModelRequest: DeployModelRequest): Future[String] = {
     orchestration.deployModel(deployModelRequest)
+  }
+
+  private def lookupCustomEndpointId(modelName: String): String = {
+    val cached = endpointNameToIdCache.get(modelName)
+    if (cached != null) return cached
+
+    val maybeEndpointName = orchestration.findEndpointByName(modelName)
+    maybeEndpointName match {
+      case Some(name) =>
+        val endpointId = name.split("/").last
+        endpointNameToIdCache.putIfAbsent(modelName, endpointId)
+        endpointId
+      case None => null
+    }
   }
 }

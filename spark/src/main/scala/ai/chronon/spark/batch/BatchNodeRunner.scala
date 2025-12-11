@@ -438,6 +438,7 @@ class BatchNodeRunner(node: Node, tableUtils: TableUtils, api: Api) extends Node
       val inputTablesToRange = Option(metadata.executionInfo.getTableDependencies)
         .map(_.asScala.toArray)
         .getOrElse(Array.empty)
+        .filterNot(_.isSoftNodeDependency) // Skip table checks on soft dependencies
         .map((td) => {
           val inputPartSpec =
             Option(td.getTableInfo).map(_.partitionSpec(tableUtils.partitionSpec)).getOrElse(tableUtils.partitionSpec)

@@ -38,7 +38,7 @@ ctr_model = Model(
         "'price_log', price_log, 'price_bucket', price_bucket)",
     },
     output_mapping={
-        "ctr": "score"
+        "ctr": "gcp_click_through_rate_ctr_model__1_0__score"
     },
     # captures the schema of the model output
     value_fields=[
@@ -67,15 +67,17 @@ ctr_model = Model(
         }
     ),
     deployment_conf=DeploymentSpec(
+        # We use a custom built container to help tweak the model input / outputs compared to the
+        # pre-built containers
         container_config=ServingContainerConfig(
-            image="us-docker.pkg.dev/vertex-ai/prediction/xgboost-cpu.2-1:latest"
+            image="us-central1-docker.pkg.dev/canary-443022/canary-images/ctr-predictor:v1"
         ),
         endpoint_config=EndpointConfig(
             endpoint_name="test_ctr_model"
         ),
         resource_config=ResourceConfig(
-            min_replica_count=3,
-            max_replica_count=10,
+            min_replica_count=1,
+            max_replica_count=3,
             machine_type="n1-standard-4"
         ),
         rollout_strategy=RolloutStrategy(
