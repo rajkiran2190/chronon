@@ -163,10 +163,10 @@ object JobSubmitterConstants {
   val ClusterInstanceCount = "clusterInstanceCount"
   val ClusterInstanceType = "clusterInstanceType"
   val ClusterIdleTimeout = "clusterIdleTimeout"
-  val EmrReleaseLabel = "emrReleaseLabel"
-  val ShouldCreateCluster = "shouldCreateCluster"
   val ClusterId = "jobFlowId"
   val ClusterName = "clusterName"
+  val SubnetId = "subnetId"
+  val SecurityGroupId = "securityGroupId"
 
   val JarUriArgKeyword = "--jar-uri"
   val JobTypeArgKeyword = "--job-type"

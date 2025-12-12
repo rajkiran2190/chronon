@@ -7,16 +7,9 @@
     },
     "env": {
       "common": {
-        "CHRONON_ONLINE_ARGS": "[ONLINE-TODO]args prefixed with -Z become constructor map for your implementation of ai.chronon.online.Api, -Zkv-host=<YOUR_HOST> -Zkv-port=<YOUR_PORT>",
-        "CHRONON_ONLINE_CLASS": "[ONLINE-TODO]your.online.class",
         "CUSTOMER_ID": "dev",
-        "FLINK_STATE_URI": "gs://zipline-warehouse-canary/flink-state",
         "FRONTEND_URL": "http://localhost:3000",
         "GCP_BIGTABLE_INSTANCE_ID": "test-instance",
-        "GCP_DATAPROC_CLUSTER_NAME": "zipline-canary-cluster",
-        "GCP_PROJECT_ID": "canary-443022",
-        "GCP_REGION": "us-central1",
-        "HADOOP_DIR": "[STREAMING-TODO]/path/to/folder/containing",
         "HUB_URL": "http://localhost:3903",
         "JOB_MODE": "local[*]",
         "PARTITION_COLUMN": "ds",

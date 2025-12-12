@@ -1,23 +1,42 @@
 {
   "executionInfo": {
+    "clusterConf": {
+      "common": {
+        "emr.config": "{\"releaseLabel\": \"emr-7.12.0\", \"instanceType\": \"m5.xlarge\", \"instanceCount\": 3, \"subnetName\": \"zipline-canary-subnet-main\", \"securityGroupName\": \"zipline-canary-sg\", \"autoTerminationPolicy\": {\"idleTimeout\": 300}}"
+      }
+    },
     "conf": {
       "common": {
-        "spark.chronon.partition.column": "ds"
+        "spark.chronon.coalesce.factor": "10",
+        "spark.chronon.partition.column": "ds",
+        "spark.chronon.partition.format": "yyyy-MM-dd",
+        "spark.chronon.table_write.format": "iceberg",
+        "spark.chronon.table_write.prefix": "s3://zipline-warehouse-dev/data/tables/",
+        "spark.default.parallelism": "10",
+        "spark.driver.cores": "1",
+        "spark.driver.memory": "1g",
+        "spark.executor.cores": "1",
+        "spark.executor.memory": "1g",
+        "spark.sql.catalog.default_iceberg": "org.apache.iceberg.spark.SparkCatalog",
+        "spark.sql.catalog.default_iceberg.catalog-impl": "org.apache.iceberg.aws.glue.GlueCatalog",
+        "spark.sql.catalog.default_iceberg.warehouse": "s3://zipline-warehouse-dev/data/tables/",
+        "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkCatalog",
+        "spark.sql.catalog.spark_catalog.catalog-impl": "org.apache.iceberg.aws.glue.GlueCatalog",
+        "spark.sql.catalog.spark_catalog.warehouse": "s3://zipline-warehouse-dev/data/tables/",
+        "spark.sql.defaultUrlStreamHandlerFactory.enabled": "false",
+        "spark.sql.shuffle.partitions": "10"
       }
     },
     "env": {
       "common": {
-        "CHRONON_ONLINE_ARGS": "[ONLINE-TODO]args prefixed with -Z become constructor map for your implementation of ai.chronon.online.Api, -Zkv-host=<YOUR_HOST> -Zkv-port=<YOUR_PORT>",
-        "CHRONON_ONLINE_CLASS": "[ONLINE-TODO]your.online.class",
+        "ARTIFACT_PREFIX": "s3://zipline-artifacts-dev",
+        "AWS_REGION": "us-west-2",
+        "CHRONON_ONLINE_ARGS": "-Ztasks=4",
         "CLOUD_PROVIDER": "aws",
         "CUSTOMER_ID": "dev",
-        "FLINK_STATE_URI": "gs://zipline-warehouse-canary/flink-state",
+        "EMR_CLUSTER_NAME": "zipline-canary-emr",
+        "FLINK_STATE_URI": "s3://zipline-warehouse-dev/flink-state",
         "FRONTEND_URL": "http://localhost:3000",
-        "GCP_BIGTABLE_INSTANCE_ID": "zipline-canary-instance",
-        "GCP_DATAPROC_CLUSTER_NAME": "zipline-canary-cluster",
-        "GCP_PROJECT_ID": "canary-443022",
-        "GCP_REGION": "us-central1",
-        "HADOOP_DIR": "[STREAMING-TODO]/path/to/folder/containing",
         "HUB_URL": "http://localhost:3903",
         "JOB_MODE": "local[*]",
         "PARTITION_COLUMN": "ds",

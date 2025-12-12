@@ -56,7 +56,6 @@
             },
             "conf": {
               "common": {
-                "spark.chronon.cloud_provider": "gcp",
                 "spark.chronon.coalesce.factor": "10",
                 "spark.chronon.partition.column": "ds",
                 "spark.chronon.partition.format": "yyyy-MM-dd",
@@ -92,7 +91,6 @@
               "common": {
                 "ARTIFACT_PREFIX": "gs://zipline-artifacts-dev",
                 "CHRONON_ONLINE_ARGS": " -Ztasks=4",
-                "CHRONON_ONLINE_CLASS": "[ONLINE-TODO]your.online.class",
                 "CLOUD_PROVIDER": "gcp",
                 "CUSTOMER_ID": "dev",
                 "ENABLE_PUBSUB": "true",
@@ -102,7 +100,6 @@
                 "GCP_DATAPROC_CLUSTER_NAME": "zipline-canary-cluster",
                 "GCP_PROJECT_ID": "canary-443022",
                 "GCP_REGION": "us-central1",
-                "HADOOP_DIR": "[STREAMING-TODO]/path/to/folder/containing",
                 "HUB_URL": "http://localhost:3903",
                 "JOB_MODE": "local[*]",
                 "PARTITION_COLUMN": "ds",
@@ -551,7 +548,6 @@
             },
             "conf": {
               "common": {
-                "spark.chronon.cloud_provider": "gcp",
                 "spark.chronon.coalesce.factor": "10",
                 "spark.chronon.partition.column": "ds",
                 "spark.chronon.partition.format": "yyyy-MM-dd",
@@ -587,7 +583,6 @@
               "common": {
                 "ARTIFACT_PREFIX": "gs://zipline-artifacts-dev",
                 "CHRONON_ONLINE_ARGS": "-Ztasks=1",
-                "CHRONON_ONLINE_CLASS": "[ONLINE-TODO]your.online.class",
                 "CLOUD_PROVIDER": "gcp",
                 "CUSTOMER_ID": "dev",
                 "ENABLE_PUBSUB": "true",
@@ -597,7 +592,6 @@
                 "GCP_DATAPROC_CLUSTER_NAME": "zipline-canary-cluster",
                 "GCP_PROJECT_ID": "canary-443022",
                 "GCP_REGION": "us-central1",
-                "HADOOP_DIR": "[STREAMING-TODO]/path/to/folder/containing",
                 "HUB_URL": "http://localhost:3903",
                 "JOB_MODE": "local[*]",
                 "PARTITION_COLUMN": "ds",
@@ -751,7 +745,6 @@
       },
       "conf": {
         "common": {
-          "spark.chronon.cloud_provider": "gcp",
           "spark.chronon.coalesce.factor": "10",
           "spark.chronon.partition.column": "ds",
           "spark.chronon.partition.format": "yyyy-MM-dd",
@@ -787,7 +780,6 @@
         "common": {
           "ARTIFACT_PREFIX": "gs://zipline-artifacts-dev",
           "CHRONON_ONLINE_ARGS": " -Ztasks=4",
-          "CHRONON_ONLINE_CLASS": "[ONLINE-TODO]your.online.class",
           "CLOUD_PROVIDER": "gcp",
           "CUSTOMER_ID": "dev",
           "ENABLE_PUBSUB": "true",
@@ -797,7 +789,6 @@
           "GCP_DATAPROC_CLUSTER_NAME": "zipline-canary-cluster",
           "GCP_PROJECT_ID": "canary-443022",
           "GCP_REGION": "us-central1",
-          "HADOOP_DIR": "[STREAMING-TODO]/path/to/folder/containing",
           "HUB_URL": "http://localhost:3903",
           "JOB_MODE": "local[*]",
           "PARTITION_COLUMN": "ds",

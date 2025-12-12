@@ -1,7 +1,6 @@
 package ai.chronon.integrations.aws
 
 import ai.chronon.spark.catalog.TableUtils
-import ai.chronon.spark.submission.ChrononHudiKryoRegistrator
 import ai.chronon.spark.submission.SparkSessionBuilder
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
@@ -16,28 +15,21 @@ class GlueCatalogTest extends AnyFlatSpec with MockitoSugar {
     local = true,
     additionalConfig = Some(
       Map(
-        "spark.sql.catalog.spark_catalog" -> "org.apache.spark.sql.hudi.catalog.HoodieCatalog",
-        "spark.sql.extensions" -> "org.apache.spark.sql.hudi.HoodieSparkSessionExtension",
-        "spark.kryo.registrator" -> classOf[ChrononHudiKryoRegistrator].getName,
-        // Disable timeline server-based markers to avoid connection issues in tests
-        "hoodie.write.markers.type" -> "DIRECT",
-        "hoodie.embed.timeline.server" -> "false"
       ))
   )
   lazy val tableUtils: TableUtils = TableUtils(spark)
 
-  "basic round trip hudi table" should "work with local metastore" in {
+  "basic round trip hive table" should "work with local metastore" in {
     import spark.implicits._
 
     val input = Set(1, 2, 3, 4)
     val sourceDF = spark.sparkContext.parallelize(input.toSeq).toDF("id")
 
     sourceDF.write
-      .format("hudi")
       .mode(SaveMode.Overwrite)
-      .saveAsTable("test_hudi_table")
+      .saveAsTable("test_hive_table")
 
-    val back = spark.table("test_hudi_table").select("id").as[Int].collect()
+    val back = spark.table("test_hive_table").select("id").as[Int].collect()
     assertEquals(input, back.toSet)
 
   }

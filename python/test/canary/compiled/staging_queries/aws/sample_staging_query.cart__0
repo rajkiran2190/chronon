@@ -1,0 +1,81 @@
+{
+  "metaData": {
+    "customJson": "{\"airflowDependencies\": [{\"name\": \"wf_data_aws_training_set_v1_test__0_with_offset_1\", \"spec\": \"data.aws_training_set_v1_test__0/ds={{ macros.ds_add(ds, 1) }}\"}]}",
+    "executionInfo": {
+      "clusterConf": {
+        "common": {
+          "emr.config": "{\"releaseLabel\": \"emr-7.12.0\", \"instanceType\": \"m5.xlarge\", \"instanceCount\": 3, \"subnetName\": \"zipline-canary-subnet-main\", \"securityGroupName\": \"zipline-canary-sg\", \"autoTerminationPolicy\": {\"idleTimeout\": 300}}"
+        }
+      },
+      "conf": {
+        "common": {
+          "spark.chronon.coalesce.factor": "10",
+          "spark.chronon.partition.column": "ds",
+          "spark.chronon.partition.format": "yyyy-MM-dd",
+          "spark.chronon.table_write.format": "iceberg",
+          "spark.chronon.table_write.prefix": "s3://zipline-warehouse-dev/data/tables/",
+          "spark.default.parallelism": "10",
+          "spark.driver.cores": "1",
+          "spark.driver.memory": "1g",
+          "spark.executor.cores": "1",
+          "spark.executor.memory": "1g",
+          "spark.sql.catalog.default_iceberg": "org.apache.iceberg.spark.SparkCatalog",
+          "spark.sql.catalog.default_iceberg.catalog-impl": "org.apache.iceberg.aws.glue.GlueCatalog",
+          "spark.sql.catalog.default_iceberg.warehouse": "s3://zipline-warehouse-dev/data/tables/",
+          "spark.sql.catalog.spark_catalog": "org.apache.iceberg.spark.SparkCatalog",
+          "spark.sql.catalog.spark_catalog.catalog-impl": "org.apache.iceberg.aws.glue.GlueCatalog",
+          "spark.sql.catalog.spark_catalog.warehouse": "s3://zipline-warehouse-dev/data/tables/",
+          "spark.sql.defaultUrlStreamHandlerFactory.enabled": "false",
+          "spark.sql.shuffle.partitions": "10"
+        }
+      },
+      "env": {
+        "common": {
+          "ARTIFACT_PREFIX": "s3://zipline-artifacts-dev",
+          "AWS_REGION": "us-west-2",
+          "CHRONON_ONLINE_ARGS": " -Ztasks=4",
+          "CLOUD_PROVIDER": "aws",
+          "CUSTOMER_ID": "dev",
+          "EMR_CLUSTER_NAME": "zipline-canary-emr",
+          "FLINK_STATE_URI": "s3://zipline-warehouse-dev/flink-state",
+          "FRONTEND_URL": "http://localhost:3000",
+          "HUB_URL": "http://localhost:3903",
+          "JOB_MODE": "local[*]",
+          "PARTITION_COLUMN": "ds",
+          "PARTITION_FORMAT": "yyyy-MM-dd",
+          "VERSION": "latest"
+        }
+      },
+      "scheduleCron": "@daily"
+    },
+    "name": "aws.sample_staging_query.cart__0",
+    "outputNamespace": "data",
+    "sourceFile": "staging_queries/aws/sample_staging_query.py",
+    "tableProperties": {
+      "sample_config_json": "{\"sample_key\": \"sample value\"}"
+    },
+    "team": "aws",
+    "version": "0"
+  },
+  "query": "\n        SELECT\n            *,\n            'cart' as category_name\n        FROM data.aws_training_set_v1_test__0\n        WHERE ds BETWEEN {{ start_date }} AND {{ end_date }}\n    ",
+  "tableDependencies": [
+    {
+      "endOffset": {
+        "length": 1,
+        "timeUnit": 1
+      },
+      "startOffset": {
+        "length": 1,
+        "timeUnit": 1
+      },
+      "tableInfo": {
+        "partitionColumn": "ds",
+        "partitionInterval": {
+          "length": 1,
+          "timeUnit": 1
+        },
+        "table": "data.aws_training_set_v1_test__0"
+      }
+    }
+  ]
+}

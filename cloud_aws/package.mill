@@ -13,6 +13,7 @@ trait CloudAwsModule extends Cross.Module[String] with build.BaseModule {
 
   def mvnDeps = build.Constants.commonDeps ++ build.Constants.loggingApiDeps ++ build.Constants.utilityDeps ++ build.Constants.sparkDeps ++ Seq(
     mvn"software.amazon.awssdk:dynamodb:2.30.13",
+    mvn"software.amazon.awssdk:ec2:2.30.13",
     mvn"software.amazon.awssdk:emr:2.30.13",
     mvn"software.amazon.awssdk:regions:2.30.13",
     mvn"software.amazon.awssdk:aws-core:2.30.13",

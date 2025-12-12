@@ -1,6 +1,37 @@
 import json
 
 
+def generate_emr_cluster_config(
+    instance_count,
+    subnet_name,
+    security_group_name,
+    instance_type="m5.xlarge",
+    idle_timeout=3600,
+    release_label="emr-7.12.0",
+):
+    """
+    Create a configuration for an EMR cluster.
+    :param instance_count: Number of instances in the cluster
+    :param subnet_name: Name tag of the subnet (will be looked up to get subnet ID)
+    :param security_group_name: Name of the security group (will be looked up)
+    :param instance_type: EC2 instance type for cluster nodes
+    :param idle_timeout: Idle timeout in seconds before cluster auto-terminates
+    :param release_label: EMR release label version
+    :return: A json string representing the configuration.
+    """
+    config = {
+        "releaseLabel": release_label,
+        "instanceType": instance_type,
+        "instanceCount": instance_count,
+        "autoTerminationPolicy": {"idleTimeout": idle_timeout},
+    }
+
+    config["subnetName"] = subnet_name
+    config["securityGroupName"] = security_group_name
+
+    return json.dumps(config)
+
+
 def generate_dataproc_cluster_config(
     num_workers,
     project_id,

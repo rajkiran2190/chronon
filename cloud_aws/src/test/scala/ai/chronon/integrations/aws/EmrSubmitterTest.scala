@@ -1,89 +1,58 @@
 package ai.chronon.integrations.aws
 
 import ai.chronon.api.ScalaJavaConversions.ListOps
-import ai.chronon.spark.submission.SparkJob
-import org.scalatest.flatspec.AnyFlatSpec
-import software.amazon.awssdk.services.emr.EmrClient
 import ai.chronon.spark.submission.JobSubmitterConstants._
+import ai.chronon.spark.submission.SparkJob
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.mockito.Mockito.when
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.mockito.MockitoSugar
-import software.amazon.awssdk.services.emr.model.ComputeLimitsUnitType
-import software.amazon.awssdk.services.emr.model.RunJobFlowRequest
-import software.amazon.awssdk.services.emr.model.RunJobFlowResponse
+import software.amazon.awssdk.services.ec2.Ec2Client
+import software.amazon.awssdk.services.emr.EmrClient
+import software.amazon.awssdk.services.emr.model.{AddJobFlowStepsRequest, AddJobFlowStepsResponse}
 
 class EmrSubmitterTest extends AnyFlatSpec with MockitoSugar {
   "EmrSubmitterClient" should "return job id when a job is submitted and assert EMR request args" in {
-    val jobId = "mock-job-id"
+    val stepId = "mock-step-id"
+    val clusterId = "j-MOCKCLUSTERID123"
 
     val mockEmrClient = mock[EmrClient]
+    val mockEc2Client = mock[Ec2Client]
 
-    val requestCaptor = org.mockito.ArgumentCaptor.forClass(classOf[RunJobFlowRequest])
+    val requestCaptor = org.mockito.ArgumentCaptor.forClass(classOf[AddJobFlowStepsRequest])
 
     when(
-      mockEmrClient.runJobFlow(
+      mockEmrClient.addJobFlowSteps(
         requestCaptor.capture()
-      )).thenReturn(RunJobFlowResponse.builder().jobFlowId(jobId).build())
+      )).thenReturn(AddJobFlowStepsResponse.builder().stepIds(stepId).build())
 
     val expectedCustomerId = "canary"
     val expectedApplicationArgs = Seq("group-by-backfill", "arg1", "arg2")
     val expectedFiles = List("s3://random-conf", "s3://random-data")
     val expectedMainClass = "some-main-class"
     val expectedJarURI = "s3://-random-jar-uri"
-    val expectedIdleTimeout = 2
-    val expectedClusterInstanceType = "some-type"
-    val expectedClusterInstanceCount = 5
 
-    val submitter = new EmrSubmitter(expectedCustomerId, mockEmrClient)
-    val submittedJobId = submitter.submit(
+    val submitter = new EmrSubmitter(expectedCustomerId, mockEmrClient, mockEc2Client)
+    val submittedStepId = submitter.submit(
       jobType = SparkJob,
       submissionProperties = Map(
         MainClass -> expectedMainClass,
         JarURI -> expectedJarURI,
-        ClusterIdleTimeout -> expectedIdleTimeout.toString,
-        ClusterInstanceType -> expectedClusterInstanceType,
-        ClusterInstanceCount -> expectedClusterInstanceCount.toString,
-        ShouldCreateCluster -> true.toString
+        ClusterId -> clusterId
       ),
       jobProperties = Map.empty,
       files = expectedFiles,
       labels = Map.empty,
       expectedApplicationArgs: _*
     )
-    assertEquals(submittedJobId, jobId)
+    assertEquals(submittedStepId, stepId)
 
     val actualRequest = requestCaptor.getValue
 
-    // "canary" specific assertions
-    assertEquals(actualRequest.logUri(), "s3://zipline-logs-canary/emr/")
-    assertEquals(actualRequest.instances().ec2SubnetId(), "subnet-085b2af531b50db44")
-    assertEquals(actualRequest.instances().emrManagedMasterSecurityGroup(), "sg-04fb79b5932a41298")
-    assertEquals(actualRequest.instances().emrManagedSlaveSecurityGroup(), "sg-04fb79b5932a41298")
-    assertEquals(actualRequest.managedScalingPolicy().computeLimits().unitType(), ComputeLimitsUnitType.INSTANCES)
-    assertEquals(actualRequest.managedScalingPolicy().computeLimits().minimumCapacityUnits(), 1)
-    assertEquals(actualRequest.managedScalingPolicy().computeLimits().maximumCapacityUnits(),
-      expectedClusterInstanceCount)
+    // Verify the cluster ID is correct
+    assertEquals(actualRequest.jobFlowId(), clusterId)
 
-    // cluster specific assertions
-    assertEquals(actualRequest.releaseLabel(), "emr-7.2.0")
-
-    assertEquals(actualRequest.instances().keepJobFlowAliveWhenNoSteps(), true)
-    assertTrue(
-      actualRequest
-        .applications()
-        .toScala
-        .map(app => app.name)
-        .forall(List("Flink", "Zeppelin", "JupyterEnterpriseGateway", "Hive", "Hadoop", "Livy", "Spark").contains))
-    assertEquals("spark-hive-site", actualRequest.configurations().get(0).classification())
-    assertEquals(
-      "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
-      actualRequest.configurations().get(0).properties().get("hive.metastore.client.factory.class")
-    )
-    assertEquals("zipline_canary_emr_profile_role", actualRequest.jobFlowRole())
-    assertEquals("zipline_canary_emr_service_role", actualRequest.serviceRole())
-    assertEquals(expectedIdleTimeout.toLong, actualRequest.autoTerminationPolicy().idleTimeout())
-
+    // Verify step configuration
     assertEquals(actualRequest.steps().size(), 1)
 
     val stepConfig = actualRequest.steps().get(0)
@@ -101,10 +70,11 @@ class EmrSubmitterTest extends AnyFlatSpec with MockitoSugar {
   it should "test flink kafka ingest job locally" ignore {}
 
   it should "Used to iterate locally. Do not enable this in CI/CD!" ignore {
-    val emrSubmitter = new EmrSubmitter("canary",
-      EmrClient
-        .builder()
-        .build())
+    val emrSubmitter = new EmrSubmitter(
+      "canary",
+      EmrClient.builder().build(),
+      Ec2Client.builder().build()
+    )
     val jobId = emrSubmitter.submit(
       jobType = SparkJob,
       submissionProperties = Map(
