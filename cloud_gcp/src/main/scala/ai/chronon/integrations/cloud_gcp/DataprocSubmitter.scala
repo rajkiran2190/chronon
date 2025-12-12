@@ -123,7 +123,11 @@ class DataprocSubmitter(jobControllerClient: JobControllerClient,
                       jobProperties: Map[String, String],
                       files: List[String],
                       labels: Map[String, String],
-                      args: String*): String = {
+                      rawArgs: String*): String = {
+    val args = DataprocSubmitter.getApplicationArgs(
+      jobType = jobType,
+      args = rawArgs.toArray
+    )
     val mainClass = submissionProperties.getOrElse(MainClass, throw new RuntimeException("Main class not found"))
     val jarUri = submissionProperties.getOrElse(JarURI, throw new RuntimeException("Jar URI not found"))
     val clusterName = submissionProperties.getOrElse(ClusterName, throw new RuntimeException("Cluster name not found"))
@@ -350,12 +354,6 @@ class DataprocSubmitter(jobControllerClient: JobControllerClient,
     }
 
     // Filter and finalize application args
-
-    val finalArgs = DataprocSubmitter.getApplicationArgs(
-      jobType = jobType,
-      args = args,
-      envMap = envMap
-    )
     val jobId = submit(
       jobType = jobType,
       submissionProperties =
@@ -363,7 +361,7 @@ class DataprocSubmitter(jobControllerClient: JobControllerClient,
       jobProperties = maybeConf.getOrElse(JobSubmitter.getModeConfigProperties(args).getOrElse(Map.empty)),
       files = DataprocSubmitter.getDataprocFilesArgs(args),
       labels = labels,
-      finalArgs: _*
+      args: _*
     )
     logger.info("Dataproc submitter job id: " + jobId)
     logger.info(
@@ -508,15 +506,11 @@ object DataprocSubmitter {
     gcsFiles.toList
   }
 
-  private[cloud_gcp] def getApplicationArgs(jobType: JobType,
-                                            envMap: Map[String, Option[String]],
-                                            args: Array[String]) = {
+  private[cloud_gcp] def getApplicationArgs(jobType: JobType, args: Array[String]) = {
     val internalArgs = SharedInternalArgs
     val userArgs = args.filter(arg => !internalArgs.exists(arg.startsWith))
     val finalArgs = jobType match {
       case TypeSparkJob => {
-        val bigtableInstanceId = envMap(GcpBigtableInstanceIdEnvVar).getOrElse("")
-        val projectId = envMap(GcpProjectIdEnvVar).getOrElse(throw new Exception(s"GcpProjectId not set"))
         Array.concat(userArgs)
       }
       case TypeFlinkJob => {

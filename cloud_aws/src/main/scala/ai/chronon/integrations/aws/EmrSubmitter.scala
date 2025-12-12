@@ -411,10 +411,11 @@ class EmrSubmitter(customerId: String, emrClient: EmrClient, ec2Client: Ec2Clien
                       labels: Map[String, String],
                       args: String*): String = {
     val existingJobId = submissionProperties.getOrElse(ClusterId, throw new RuntimeException("JobFlowId not found"))
+    val userArgs = args.filter(arg => !SharedInternalArgs.exists(arg.startsWith))
     val request = AddJobFlowStepsRequest
       .builder()
       .jobFlowId(existingJobId)
-      .steps(createStepConfig(files, submissionProperties(MainClass), submissionProperties(JarURI), args: _*))
+      .steps(createStepConfig(files, submissionProperties(MainClass), submissionProperties(JarURI), userArgs: _*))
       .build()
 
     val responseStepId = emrClient.addJobFlowSteps(request).stepIds().get(0)

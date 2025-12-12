@@ -396,7 +396,7 @@ class DataprocSubmitterTest extends AnyFlatSpec with MockitoSugar {
 
     val inputArgs = internalArgsToFilter ++ argsToKeep
 
-    val actual = DataprocSubmitter.getApplicationArgs(jobType = submission.SparkJob, envMap = envMap, args = inputArgs)
+    val actual = DataprocSubmitter.getApplicationArgs(jobType = submission.SparkJob, args = inputArgs)
 
     assert(
       actual sameElements Array(
@@ -410,7 +410,6 @@ class DataprocSubmitterTest extends AnyFlatSpec with MockitoSugar {
 
     val argsToKeep = Array("--arg1=value1")
     val actual = DataprocSubmitter.getApplicationArgs(jobType = submission.FlinkJob,
-                                                      envMap = Map.empty,
                                                       args = internalArgsToFilter ++ argsToKeep)
     assert(actual sameElements argsToKeep)
   }
