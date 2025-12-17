@@ -526,13 +526,16 @@ def GroupBy(
         This is used by airflow integration to pick an older hive partition to wait on.
     :type lag: int
     :param offline_schedule:
-        the offline schedule interval for batch jobs. Below is the equivalent of the cron tab commands::
+        The offline schedule interval for batch jobs. Supports standard cron expressions
+        that run at most once per day. Examples::
 
-            '@hourly': '0 * * * *',
-            '@daily': '0 0 * * *',
-            '@weekly': '0 0 * * 0',
-            '@monthly': '0 0 1 * *',
-            '@yearly': '0 0 1 1 *',
+            '@daily': Legacy format for midnight daily execution
+            '0 2 * * *': Daily at 2:00 AM
+            '30 14 * * MON-FRI': Weekdays at 2:30 PM
+            '0 9 * * 1': Mondays at 9:00 AM
+            '15 23 * * SUN': Sundays at 11:15 PM
+
+        Note: Hourly, sub-hourly, or multi-daily schedules are not supported.
 
     :type offline_schedule: str
     :param tags:

@@ -366,7 +366,10 @@ def Join(
         users can register external sources into Api implementation. Chronon fetcher can invoke the implementation.
         This is applicable only for online fetching. Offline this will not be produce any values.
     :param offline_schedule:
-        Cron expression for Airflow to schedule a DAG for offline join compute tasks
+        Schedule expression for offline join compute tasks. Supports standard cron expressions
+        that run at most once per day. Examples: '@daily' (midnight), '0 2 * * *' (2am daily),
+        '30 14 * * MON-FRI' (weekdays at 2:30pm), '0 9 * * 1' (Mondays at 9am).
+        Note: Hourly, sub-hourly, or multi-daily schedules are not supported.
     :param row_ids:
         Columns of the left table that uniquely define a training record. Used as default keys during bootstrap
     :param bootstrap_parts:

@@ -12,3 +12,5 @@ GitPython
 google-api-core==2.27.0
 # Query validations
 sqlglot
+# Schedule validation
+croniter

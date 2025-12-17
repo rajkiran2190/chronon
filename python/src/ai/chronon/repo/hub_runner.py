@@ -16,6 +16,7 @@ from ai.chronon.repo import hub_uploader, utils
 from ai.chronon.repo.constants import RunMode
 from ai.chronon.repo.utils import print_possible_confs
 from ai.chronon.repo.zipline_hub import ZiplineHub
+from ai.chronon.schedule_validation import validate_at_most_daily_schedule
 
 ALLOWED_DATE_FORMATS = ["%Y-%m-%d"]
 
@@ -462,12 +463,12 @@ def get_schedule_modes(conf_path):
     online = "true" if bool(online_value) else "false"
     offline_schedule = metadata_map["executionInfo"].get("scheduleCron", None)
 
-    # check if offline_schedule is null or 'None' or '@daily' else throw an error
-    valid_schedules = {None, "None", "@daily"}
-    if offline_schedule not in valid_schedules:
-        raise ValueError(
-            f"Unsupported offline_schedule: {offline_schedule}. Only null, 'None', or '@daily' are supported."
-        )
+    # Validate schedule expression using croniter-based validation
+    if offline_schedule:
+        validation_error = validate_at_most_daily_schedule(offline_schedule)
+        if validation_error:
+            raise ValueError(f"Invalid offline_schedule: {validation_error}")
+
     offline_schedule = offline_schedule or "None"
     return ScheduleModes(online=online, offline_schedule=offline_schedule)
 
