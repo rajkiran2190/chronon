@@ -46,7 +46,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "aws.ctr_labels.v1__0",
     "outputNamespace": "data",

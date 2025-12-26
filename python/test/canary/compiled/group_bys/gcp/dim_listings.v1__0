@@ -84,7 +84,8 @@
         }
       },
       "historicalBackfill": 0,
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily",
+      "onlineSchedule": "@daily"
     },
     "name": "gcp.dim_listings.v1__0",
     "online": 1,

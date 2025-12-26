@@ -62,7 +62,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "gcp.sample_staging_query.purchases_labels__0",
     "outputNamespace": "data",

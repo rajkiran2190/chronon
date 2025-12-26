@@ -12,7 +12,7 @@
     "samplePercent": 100.0,
     "consistencySamplePercent": 5.0,
     "executionInfo": {
-      "scheduleCron": "@daily",
+      "offlineSchedule": "@daily",
       "historicalBackfill": 0
     }
   },
@@ -42,7 +42,7 @@
           },
           "online": 1,
           "executionInfo": {
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
             "historicalBackfill": 0
           }
         },
@@ -106,7 +106,7 @@
           },
           "online": 1,
           "executionInfo": {
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
             "historicalBackfill": 0
           }
         },

@@ -10,7 +10,7 @@
     "production": 0,
     "samplePercent": 100.0,
     "executionInfo": {
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     }
   },
   "left": {
@@ -41,7 +41,7 @@
           "online": 1,
           "production": 0,
           "executionInfo": {
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
             "historicalBackfill": 0
           }
         },

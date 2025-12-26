@@ -46,7 +46,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "aws.sample_staging_query.terminal__0",
     "outputNamespace": "data",

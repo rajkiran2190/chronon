@@ -32,7 +32,7 @@
         },
         "modeConfigs": {}
       },
-      "scheduleCron": "@daily",
+      "offlineSchedule": "@daily",
       "historicalBackfill": 0
     }
   },

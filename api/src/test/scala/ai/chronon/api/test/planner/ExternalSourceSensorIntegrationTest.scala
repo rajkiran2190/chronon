@@ -25,7 +25,7 @@ class ExternalSourceSensorIntegrationTest extends AnyFlatSpec with Matchers {
   private def createMetaDataWithDependencies(name: String, tableDeps: Seq[TableDependency]): MetaData = {
     val executionInfo = new ExecutionInfo()
       .setTableDependencies(tableDeps.asJava)
-      .setScheduleCron("@daily")
+      .setOfflineSchedule("@daily")
 
     new MetaData()
       .setName(name)
@@ -128,7 +128,7 @@ class ExternalSourceSensorIntegrationTest extends AnyFlatSpec with Matchers {
       .setTeam("test_team")
       .setVersion("1")
       .setOutputNamespace("test_namespace")
-      .setExecutionInfo(new ExecutionInfo().setScheduleCron("@daily"))
+      .setExecutionInfo(new ExecutionInfo().setOfflineSchedule("@daily"))
 
     // Create left hand side source pointing to fact table
     val leftSource = new Source()

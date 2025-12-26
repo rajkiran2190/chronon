@@ -116,7 +116,7 @@
           }
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     }
   },
   "left": {
@@ -141,7 +141,7 @@
           "outputNamespace": "data",
           "online": 1,
           "executionInfo": {
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
             "historicalBackfill": 0
           }
         },

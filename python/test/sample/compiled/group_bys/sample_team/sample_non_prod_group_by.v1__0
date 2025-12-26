@@ -70,7 +70,7 @@
         }
       },
       "historicalBackfill": 0,
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "sample_team.sample_non_prod_group_by.v1__0",
     "online": 0,

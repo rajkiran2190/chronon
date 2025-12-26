@@ -68,7 +68,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "sample_team.sample_group_by.v1__0",
           "online": 1,
@@ -168,7 +169,8 @@
           }
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily",
+      "onlineSchedule": "@daily"
     },
     "name": "sample_team.sample_join.v1__0",
     "online": 1,

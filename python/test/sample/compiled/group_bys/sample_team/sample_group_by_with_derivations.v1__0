@@ -71,7 +71,7 @@
         }
       },
       "historicalBackfill": 0,
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "sample_team.sample_group_by_with_derivations.v1__0",
     "outputNamespace": "sample_namespace",

@@ -132,7 +132,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "aws.purchases.v1_test__0",
           "online": 1,
@@ -232,7 +233,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "aws.training_set.v1_test__0",
     "online": 0,

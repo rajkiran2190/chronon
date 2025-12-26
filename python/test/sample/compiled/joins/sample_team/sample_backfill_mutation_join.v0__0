@@ -61,7 +61,7 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily"
           },
           "name": "sample_team.mutation_sample_group_by.v0__0",
           "outputNamespace": "test",
@@ -155,7 +155,7 @@
           }
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "sample_team.sample_backfill_mutation_join.v0__0",
     "online": 0,

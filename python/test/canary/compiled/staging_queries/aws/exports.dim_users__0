@@ -47,7 +47,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "aws.exports.dim_users__0",
     "outputNamespace": "data",

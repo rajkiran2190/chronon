@@ -453,7 +453,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily",
             "stepDays": 4
           },
           "name": "gcp.user_activities.v1__1",
@@ -575,7 +576,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "gcp.dim_listings.v1__0",
           "online": 1,
@@ -686,7 +688,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "gcp.dim_merchants.v1__0",
           "online": 1,
@@ -871,7 +874,8 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily",
+      "offlineSchedule": "@daily",
+      "onlineSchedule": "@daily",
       "stepDays": 2
     },
     "name": "gcp.demo.v1__1",

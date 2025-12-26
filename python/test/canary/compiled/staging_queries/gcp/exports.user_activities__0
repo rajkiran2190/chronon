@@ -63,7 +63,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "gcp.exports.user_activities__0",
     "outputNamespace": "data",

@@ -58,7 +58,7 @@
           "spark.sql.catalog.lakehouse_output.gcp_project": "customer-zipline-dev"
         }
       },
-      "scheduleCron": "@daily",
+      "offlineSchedule": "@daily",
       "historicalBackfill": 0
     }
   },

@@ -10,7 +10,7 @@
     "production": 0,
     "samplePercent": 100.0,
     "executionInfo": {
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     }
   },
   "left": {
@@ -34,7 +34,7 @@
           "name": "sample_team.mutation_sample_group_by.v0",
           "team": "sample_team",
           "executionInfo": {
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
             "historicalBackfill": 0
           }
         },

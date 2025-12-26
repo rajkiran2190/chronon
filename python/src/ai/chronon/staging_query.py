@@ -178,7 +178,7 @@ def StagingQuery(
 
     # Create execution info
     exec_info = common.ExecutionInfo(
-        scheduleCron=offline_schedule,
+        offlineSchedule=offline_schedule,
         conf=conf,
         env=env_vars,
         stepDays=step_days,

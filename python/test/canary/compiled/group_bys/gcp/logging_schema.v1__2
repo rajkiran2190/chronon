@@ -79,7 +79,7 @@
         }
       },
       "historicalBackfill": 0,
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "gcp.logging_schema.v1__2",
     "outputNamespace": "data",

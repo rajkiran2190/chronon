@@ -62,7 +62,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "gcp.ctr_labels.v1__0",
     "outputNamespace": "data",

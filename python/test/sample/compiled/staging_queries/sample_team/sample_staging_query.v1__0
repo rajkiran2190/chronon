@@ -43,7 +43,7 @@
           }
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "sample_team.sample_staging_query.v1__0",
     "outputNamespace": "sample_namespace",

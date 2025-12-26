@@ -43,8 +43,8 @@ object `package` extends PythonModule with RuffModule with PublishModule {
     )
   )
 
-  override def publishVersion = Task {
-    sys.env.getOrElse("CHRONON_VERSION", "0.0.32")
+  override def publishVersion = Task.Input {
+    Task.env.getOrElse("CHRONON_VERSION", "2025.12.22")
   }
 
   def sources = super.sources() ++ generatedSources()

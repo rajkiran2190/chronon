@@ -329,3 +329,70 @@ def test_query_api_obj():
     assert query_obj.partitionColumn == partition_column
     assert query_obj.partitionFormat == partition_format
     assert query_obj.subPartitionsToWaitFor == sub_partitions_to_wait_for
+
+
+def test_online_schedule_validation():
+    """Test that online_schedule validation works correctly."""
+    # Test that online_schedule cannot be set when online=False
+    with pytest.raises(ValueError, match="online_schedule cannot be set when online=False"):
+        group_by.GroupBy(
+            sources=event_source("table"),
+            keys=["subject"],
+            aggregations=group_by.Aggregations(
+                count=group_by.Aggregation(
+                    input_column="event_id",
+                    operation=group_by.Operation.COUNT
+                ),
+            ),
+            version=1,
+            online=False,
+            online_schedule="@daily"  # This should raise an error
+        )
+
+    # Test that online_schedule can be None when online=False
+    gb = group_by.GroupBy(
+        sources=event_source("table"),
+        keys=["subject"],
+        aggregations=group_by.Aggregations(
+            count=group_by.Aggregation(
+                input_column="event_id",
+                operation=group_by.Operation.COUNT
+            ),
+        ),
+        version=1,
+        online=False,
+        online_schedule=None  # This should be fine
+    )
+    assert gb.metaData.executionInfo.onlineSchedule is None
+
+    # Test that online_schedule defaults to @daily when online=True and not specified
+    gb = group_by.GroupBy(
+        sources=event_source("table"),
+        keys=["subject"],
+        aggregations=group_by.Aggregations(
+            count=group_by.Aggregation(
+                input_column="event_id",
+                operation=group_by.Operation.COUNT
+            ),
+        ),
+        version=1,
+        online=True,
+        online_schedule=None  # Should default to @daily
+    )
+    assert gb.metaData.executionInfo.onlineSchedule == "@daily"
+
+    # Test that online_schedule can be explicitly set when online=True
+    gb = group_by.GroupBy(
+        sources=event_source("table"),
+        keys=["subject"],
+        aggregations=group_by.Aggregations(
+            count=group_by.Aggregation(
+                input_column="event_id",
+                operation=group_by.Operation.COUNT
+            ),
+        ),
+        version=1,
+        online=True,
+        online_schedule="0 2 * * *"  # Custom schedule
+    )
+    assert gb.metaData.executionInfo.onlineSchedule == "0 2 * * *"

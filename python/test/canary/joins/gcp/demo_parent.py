@@ -14,11 +14,7 @@ source = EventSource(
     table=exports.user_activities.table,
     topic="pubsub://user-activities-v2/project=canary-443022/subscription=user-activities-v2-sub/serde=pubsub_schema/schemaId=user-activities",
     query=Query(
-        selects=selects(
-            user_id="user_id",
-            listing_id="listing_id",
-            row_id="event_id"
-        ),
+        selects=selects(user_id="user_id", listing_id="listing_id", row_id="event_id"),
         time_column="unix_millis(TIMESTAMP(event_time_ms))",
     ),
 )
@@ -41,6 +37,7 @@ parent_join = Join(
     version=0,
     online=True,
     output_namespace="data",
+    offline_schedule="17 0 * * *",
 )
 
 upstream_join_source = JoinSource(
@@ -52,5 +49,5 @@ upstream_join_source = JoinSource(
             price_cents="listing_id_price_cents",
         ),
         time_column="ts",
-    )
+    ),
 )

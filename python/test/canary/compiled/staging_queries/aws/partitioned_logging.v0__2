@@ -46,7 +46,7 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "aws.partitioned_logging.v0__2",
     "outputNamespace": "data",

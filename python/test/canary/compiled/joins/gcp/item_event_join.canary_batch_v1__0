@@ -148,7 +148,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "gcp.purchases.v1_test__0",
           "online": 1,
@@ -266,7 +267,8 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily",
+      "onlineSchedule": "@daily"
     },
     "name": "gcp.item_event_join.canary_batch_v1__0",
     "online": 1,

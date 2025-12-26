@@ -63,7 +63,7 @@
         }
       },
       "historicalBackfill": 0,
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     },
     "name": "aws.logging_schema.v1__2",
     "outputNamespace": "data",

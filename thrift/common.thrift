@@ -149,12 +149,13 @@ struct ExecutionInfo {
 
     # relevant for batch jobs
     # temporal workflow nodes maintain their own cron schedule
-    10: optional string scheduleCron
+    10: optional string offlineSchedule
     11: optional i32 stepDays
     12: optional bool historicalBackfill
     13: optional list<TableDependency> tableDependencies
     14: optional TableInfo outputTableInfo
     15: optional bool enableStatsCompute
+    16: optional string onlineSchedule
 
     200: optional list<KvDependency> kvDependencies
     201: optional KvInfo outputKvInfo

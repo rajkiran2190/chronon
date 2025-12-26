@@ -369,10 +369,10 @@ def has_topic(group_by: api.GroupBy) -> bool:
 
 
 def get_offline_schedule(conf: ChrononJobTypes) -> Optional[str]:
-    schedule_interval = conf.metaData.executionInfo.scheduleCron or "@daily"
-    if schedule_interval == "@never":
+    offline_schedule = conf.metaData.executionInfo.offlineSchedule or "@daily"
+    if offline_schedule == "@never":
         return None
-    return schedule_interval
+    return offline_schedule
 
 
 def requires_log_flattening_task(conf: ChrononJobTypes) -> bool:

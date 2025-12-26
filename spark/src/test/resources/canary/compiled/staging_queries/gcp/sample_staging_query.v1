@@ -116,7 +116,7 @@
           }
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     }
   },
   "query": "\nSELECT\n    id_listing,\n    place_id,\n    S2_CELL(lat, lng, 12) AS s2CellId,\n    impressed_unique_count_1d,\n    viewed_unique_count_1d,\n    ds\nFROM sample_namespace.sample_table\nWHERE ds BETWEEN '{{ start_date }}' AND '{{ end_date }}'\n",

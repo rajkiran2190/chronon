@@ -20,10 +20,30 @@ from ai.chronon.repo.hub_runner import hub
 class TestHubRunner:
     """Test cases for hub_runner backfill command."""
 
+    def _run_and_print(self, runner, command, args):
+        """Helper method to run command and print output."""
+        result = runner.invoke(command, args)
+
+        # Print stdout
+        if result.output:
+            print(f"\n=== STDOUT ===\n{result.output}")
+
+        # Print stderr if separate
+        if hasattr(result, 'stderr') and result.stderr:
+            print(f"\n=== STDERR ===\n{result.stderr}")
+
+        # Print exception if any
+        if result.exception:
+            print(f"\n=== EXCEPTION ===\n{result.exception}")
+            import traceback
+            traceback.print_exception(type(result.exception), result.exception, result.exception.__traceback__)
+
+        return result
+
     def test_hub_runner(self):
         """Test that hub command group can be invoked."""
         runner = CliRunner()
-        result = runner.invoke(hub, ["--help"])
+        result = self._run_and_print(runner, hub, ["--help"])
         assert result.exit_code == 0
         assert "Usage:" in result.output
 
@@ -42,7 +62,7 @@ class TestHubRunner:
 
         # Run backfill command
         runner = CliRunner()
-        result = runner.invoke(hub, [
+        result = self._run_and_print(runner, hub, [
             'backfill',
             '--repo', canary,
             '--conf', online_join_conf,
@@ -87,7 +107,7 @@ class TestHubRunner:
 
         # Run backfill command
         runner = CliRunner()
-        result = runner.invoke(hub, [
+        result = self._run_and_print(runner, hub, [
             'run-adhoc',
             '--repo', canary,
             '--conf', online_join_conf,
@@ -98,7 +118,7 @@ class TestHubRunner:
 
         # start-ds is not supported
         assert result.exit_code != 0
-        result = runner.invoke(hub, [
+        result = self._run_and_print(runner, hub, [
             'run-adhoc',
             '--repo', canary,
             '--conf', online_join_conf,
@@ -140,7 +160,7 @@ class TestHubRunner:
 
         # Run backfill command
         runner = CliRunner(catch_exceptions=False)
-        result = runner.invoke(hub, [
+        result = self._run_and_print(runner, hub, [
             'schedule',
             '--repo', canary,
             '--conf', online_join_conf,
@@ -160,7 +180,7 @@ class TestHubRunner:
         json_payload = call_args[1]['json']
         assert json_payload['confName'] == ".".join(online_join_conf.split("/")[-2:])
         assert json_payload['branch'] == "test-branch"
-        assert json_payload['modeSchedules'] == {"BACKFILL": "@daily", "DEPLOY": "true"}
+        assert json_payload['modeSchedules'] == {"BACKFILL": "@daily", "DEPLOY": "@daily"}
 
         # Check headers
         headers = call_args[1]['headers']

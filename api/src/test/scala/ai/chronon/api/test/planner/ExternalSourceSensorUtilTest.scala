@@ -187,7 +187,7 @@ class ExternalSourceSensorUtilTest extends AnyFlatSpec with Matchers {
 
     val executionInfo = new ExecutionInfo()
       .setTableDependencies(dependencies.asJava)
-      .setScheduleCron("@daily")
+      .setOfflineSchedule("@daily")
       .setStepDays(1)
 
     val baseMetaData = new MetaData()

@@ -431,6 +431,7 @@ def GroupBy(
     production: bool = DEFAULT_PRODUCTION,
     # execution params
     offline_schedule: str = "@daily",
+    online_schedule: Optional[str] = None,
     conf: common.ConfigProperties = None,
     env_vars: common.EnvironmentVariables = None,
     cluster_conf: common.ClusterConfigProperties = None,
@@ -538,6 +539,12 @@ def GroupBy(
         Note: Hourly, sub-hourly, or multi-daily schedules are not supported.
 
     :type offline_schedule: str
+    :param online_schedule:
+        The online schedule interval for real-time serving jobs. Supports standard cron expressions
+        that run at most once per day. When online=True and online_schedule is not specified,
+        defaults to "@daily". Set to None to explicitly disable online scheduling even when online=True.
+        Examples follow the same format as offline_schedule.
+    :type online_schedule: Optional[str]
     :param tags:
         Additional metadata that does not directly affect feature computation, but is useful to
         track for management purposes.
@@ -617,8 +624,20 @@ def GroupBy(
     # get caller's filename to assign team
     team = inspect.stack()[1].filename.split("/")[-2]
 
+    # Validate online_schedule based on online flag
+    if not online and online_schedule is not None:
+        raise ValueError(
+            "online_schedule cannot be set when online=False. "
+            "Either set online=True or remove the online_schedule parameter."
+        )
+
+    # Set default online_schedule if online is True and online_schedule is not specified
+    if online and online_schedule is None:
+        online_schedule = "@daily"
+
     exec_info = common.ExecutionInfo(
-        scheduleCron=offline_schedule,
+        offlineSchedule=offline_schedule,
+        onlineSchedule=online_schedule,
         conf=conf,
         env=env_vars,
         stepDays=step_days,

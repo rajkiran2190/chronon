@@ -92,7 +92,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "aws.dim_listings.v1__0",
           "online": 1,
@@ -568,7 +569,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily",
             "stepDays": 4
           },
           "name": "aws.user_activities.v1__1",
@@ -748,7 +750,8 @@
           "VERSION": "latest"
         }
       },
-      "scheduleCron": "@daily",
+      "offlineSchedule": "@daily",
+      "onlineSchedule": "@daily",
       "stepDays": 2
     },
     "name": "aws.demo.derivations_v1__2",

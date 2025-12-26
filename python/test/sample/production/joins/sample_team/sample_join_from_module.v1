@@ -10,7 +10,7 @@
     "production": 0,
     "samplePercent": 100.0,
     "executionInfo": {
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily"
     }
   },
   "left": {
@@ -34,7 +34,7 @@
           "name": "sample_team.sample_group_by_from_module.v1",
           "team": "sample_team",
           "executionInfo": {
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
             "historicalBackfill": 0
           }
         },
@@ -104,7 +104,7 @@
           },
           "online": 1,
           "executionInfo": {
-            "scheduleCron": "@daily",
+            "offlineSchedule": "@daily",
             "historicalBackfill": 0
           }
         },

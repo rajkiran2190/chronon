@@ -8,7 +8,7 @@
     },
     "production": 0,
     "executionInfo": {
-      "scheduleCron": "@daily",
+      "offlineSchedule": "@daily",
       "historicalBackfill": 0
     }
   },

@@ -100,7 +100,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "sample_team.event_sample_group_by.v1__0",
           "online": 1,
@@ -202,7 +203,8 @@
               }
             },
             "historicalBackfill": 0,
-            "scheduleCron": "@daily"
+            "offlineSchedule": "@daily",
+            "onlineSchedule": "@daily"
           },
           "name": "sample_team.entity_sample_group_by_from_module.v1__0",
           "online": 1,
@@ -304,7 +306,8 @@
           }
         }
       },
-      "scheduleCron": "@daily"
+      "offlineSchedule": "@daily",
+      "onlineSchedule": "@daily"
     },
     "name": "sample_team.sample_join_bootstrap.v1__0",
     "online": 1,
