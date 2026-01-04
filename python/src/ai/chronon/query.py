@@ -30,6 +30,7 @@ def Query(
     partition_column: str = None,
     partition_format: str = None,
     sub_partitions_to_wait_for: List[str] = None,
+    clustered: bool = None,
 ) -> api.Query:
     """
     Create a query object that is used to scan data from various data sources.
@@ -83,6 +84,13 @@ def Query(
     :param partition_format:
         Date format string to expect the partition values to be in.
     :type partition_format: str, optional
+    :param clustered:
+        Indicates whether the source table uses clustering (e.g., Delta Lake) instead of
+        traditional Hive-style partitioning. This affects Airflow sensor logic:
+        - For partitioned tables: sensor checks max(partition_col) >= sensor_date
+        - For clustered tables: sensor checks max(timestamp_col) >= next(sensor_date)
+          to ensure all data for that date has landed.
+    :type clustered: bool, optional
     :return: A Query object that Chronon can use to scan just the necessary data efficiently.
     """
     return api.Query(
@@ -97,6 +105,7 @@ def Query(
         partitionColumn=partition_column,
         subPartitionsToWaitFor=sub_partitions_to_wait_for,
         partitionFormat=partition_format,
+        clustered=clustered,
     )
 
 

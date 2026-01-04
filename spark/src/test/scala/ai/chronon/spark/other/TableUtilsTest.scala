@@ -525,4 +525,29 @@ class TableUtilsTest extends AnyFlatSpec {
     assertThrows[ParseException](Format.getCatalog(""))
   }
 
+  it should "generate whereClauses with default partition column" in {
+    val range = PartitionRange("2024-01-01", "2024-01-10")
+    // Uses exclusive end (< next(end)) which works for both partitioned and clustered tables
+    val clauses = tableUtils.whereClauses(range)
+    assertEquals(Seq("ds >= '2024-01-01'", "ds < '2024-01-11'"), clauses)
+  }
+
+  it should "generate whereClauses with custom partition column" in {
+    val range = PartitionRange("2024-01-01", "2024-01-10")
+    val clauses = tableUtils.whereClauses(range, partitionColumn = Some("date"))
+    assertEquals(Seq("date >= '2024-01-01'", "date < '2024-01-11'"), clauses)
+  }
+
+  it should "generate whereClauses with null start" in {
+    val range = PartitionRange(null, "2024-01-10")
+    val clauses = tableUtils.whereClauses(range)
+    assertEquals(Seq("ds < '2024-01-11'"), clauses)
+  }
+
+  it should "generate whereClauses with null end" in {
+    val range = PartitionRange("2024-01-01", null)
+    val clauses = tableUtils.whereClauses(range)
+    assertEquals(Seq("ds >= '2024-01-01'"), clauses)
+  }
+
 }

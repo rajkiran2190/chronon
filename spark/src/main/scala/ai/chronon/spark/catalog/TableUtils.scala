@@ -648,9 +648,16 @@ class TableUtils(@transient val sparkSession: SparkSession) extends Serializable
      }).coalesce(coalesceFactor * parallelism)
   }
 
-  def whereClauses(partitionRange: PartitionRange, partitionColumn: String = partitionColumn): Seq[String] = {
-    val startClause = Option(partitionRange.start).map(s"$partitionColumn >= '" + _ + "'")
-    val endClause = Option(partitionRange.end).map(s"$partitionColumn <= '" + _ + "'")
+  def whereClauses(
+      range: PartitionRange,
+      partitionColumn: Option[String] = None
+  ): Seq[String] = {
+    val col = partitionColumn.getOrElse(this.partitionColumn)
+    // Use >= start and < next(end) which works for both partitioned and clustered tables.
+    // For partitioned tables with daily partitions (e.g., ds='2024-01-10'), this is equivalent
+    // to <= end since there are no values between discrete partition dates.
+    val startClause = Option(range.start).map(s => s"$col >= '$s'")
+    val endClause = Option(range.end).map(e => s"$col < '${range.partitionSpec.after(e)}'")
     (startClause ++ endClause).toSeq
   }
 
@@ -660,8 +667,13 @@ class TableUtils(@transient val sparkSession: SparkSession) extends Serializable
              range: Option[PartitionRange] = None): DataFrame = {
 
     val maybeQuery = Option(query)
+
     val queryPartitionColumn = maybeQuery.flatMap(q => Option(q.partitionColumn)).getOrElse(partitionColumn)
-    val rangeWheres = range.map(whereClauses(_, queryPartitionColumn)).getOrElse(Seq.empty)
+
+    val rangeWheres = range
+      .map(r => whereClauses(r, partitionColumn = Some(queryPartitionColumn)))
+      .getOrElse(Seq.empty)
+
     val queryWheres = maybeQuery.flatMap(q => Option(q.wheres)).map(_.toScala).getOrElse(Seq.empty)
     val wheres: Seq[String] = rangeWheres ++ queryWheres
     val selects = maybeQuery.flatMap(q => Option(q.selects)).map(_.toScala).getOrElse(Map.empty)

@@ -702,7 +702,10 @@ object GroupBy {
          |""".stripMargin)
     metaColumns ++= timeMapping
 
-    val partitionConditions = intersectedRange.whereClauses
+    val partitionConditions = tableUtils.whereClauses(
+      intersectedRange,
+      partitionColumn = Option(source.query.partitionColumn)
+    )
 
     logger.info(s"""
          |Rendering source query:

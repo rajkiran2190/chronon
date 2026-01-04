@@ -46,6 +46,15 @@ struct Query {
     **/
     24: optional list<string> subPartitionsToWaitFor
 
+    /**
+    * Indicates whether the source table uses clustering (e.g., Delta Lake) instead of
+    * traditional Hive-style partitioning. This affects sensor logic:
+    * - For partitioned tables: sensor checks max(partition_col) >= sensor_date
+    * - For clustered tables: sensor checks max(timestamp_col) >= next(sensor_date)
+    *   to ensure all data for that date has landed.
+    **/
+    25: optional bool clustered
+
 }
  
 /**

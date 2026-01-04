@@ -331,6 +331,34 @@ def test_query_api_obj():
     assert query_obj.subPartitionsToWaitFor == sub_partitions_to_wait_for
 
 
+def test_query_with_clustered_flag():
+    """
+    Test Query with clustered flag for Delta Lake tables.
+    The clustered flag affects Airflow sensor logic, not WHERE clause generation.
+    """
+    query_obj = query.Query(
+        selects={"key1": "key1", "value": "value"},
+        time_column="created_at",
+        partition_column="created_at",
+        clustered=True,
+    )
+
+    assert query_obj.clustered == True
+    assert query_obj.partitionColumn == "created_at"
+
+
+def test_query_without_clustered_flag():
+    """
+    Test Query without clustered flag (default partitioned behavior).
+    """
+    query_obj = query.Query(
+        selects={"key1": "key1"},
+        partition_column="ds",
+    )
+
+    assert query_obj.partitionColumn == "ds"
+    assert query_obj.clustered is None  # Not set
+
 def test_online_schedule_validation():
     """Test that online_schedule validation works correctly."""
     # Test that online_schedule cannot be set when online=False
