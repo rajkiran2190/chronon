@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- Console appender with minimal formatting -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Suppress DEBUG logs from Docker/Testcontainers -->
+  <logger name="com.github.dockerjava" level="WARN"/>
+  <logger name="org.testcontainers" level="INFO"/>
+
+  <!-- Suppress DEBUG logs from Spark -->
+  <logger name="org.apache.spark" level="WARN"/>
+  <logger name="org.spark_project" level="WARN"/>
+  <logger name="org.apache.hadoop" level="WARN"/>
+
+  <!-- Suppress DEBUG logs from Redis/Jedis -->
+  <logger name="redis.clients.jedis" level="INFO"/>
+
+  <!-- Suppress DEBUG logs from other libraries -->
+  <logger name="org.apache.hc" level="WARN"/>
+  <logger name="org.apache.http" level="WARN"/>
+  <logger name="io.netty" level="WARN"/>
+
+  <!-- Keep application logs at ERROR level -->
+  <logger name="ai.chronon" level="ERROR"/>
+
+  <!-- Root logger at ERROR level -->
+  <root level="ERROR">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>
