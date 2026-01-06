@@ -241,12 +241,13 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
         // Get cluster nodes and scan each master
         val clusterNodes = jedisCluster.getClusterNodes
         clusterNodes.asScala.foreach { case (nodeKey, pool) =>
-          // Only scan master nodes (not replicas)
-          if (!nodeKey.contains("slave")) {
-            val connection = pool.getResource
-            connection match {
-              case jedis: Jedis =>
-                try {
+          val connection = pool.getResource
+          connection match {
+            case jedis: Jedis =>
+              try {
+                val nodeInfo = jedis.info("replication")
+                val isMaster = nodeInfo.contains("role:master")
+                if (isMaster) {
                   var nodeCursor = cursor
                   var continue = true
                   while (continue && allKeys.size < listLimit) {
@@ -256,13 +257,13 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
                     lastCursor = nodeCursor
                     continue = nodeCursor != ScanParams.SCAN_POINTER_START
                   }
-                } finally {
-                  jedis.close()
                 }
-              case _ =>
-                logger.warn(s"Unexpected connection type: ${connection.getClass}")
-                connection.close()
-            }
+              } finally {
+                jedis.close()
+              }
+            case _ =>
+              logger.warn(s"Unexpected connection type: ${connection.getClass}")
+              connection.close()
           }
         }
 

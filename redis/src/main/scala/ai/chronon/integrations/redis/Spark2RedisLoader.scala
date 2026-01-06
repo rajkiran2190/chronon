@@ -156,7 +156,10 @@ object Spark2RedisLoader {
   /** Build Redis key with hash tags and prepend timestamp to value.
     * This matches the format used by multiPut/multiGet.
     */
-  def buildTransformedDataFrame(df: DataFrame, keyPrefix: String, batchTimestamp: Long,  spark: SparkSession): DataFrame = {
+  def buildTransformedDataFrame(df: DataFrame,
+                                keyPrefix: String,
+                                batchTimestamp: Long,
+                                spark: SparkSession): DataFrame = {
     import spark.implicits._
 
     // UDF to build Redis key with hash tags for cluster co-location
