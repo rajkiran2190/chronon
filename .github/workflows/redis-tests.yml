@@ -69,7 +69,6 @@ jobs:
           TESTCONTAINERS_RYUK_DISABLED: true
         # Note: Uses Testcontainers with grokzen/redis-cluster:7.0.10
         # Tests run against a real Redis cluster (3 masters + 3 replicas)
-        # including real failure simulation tests (container pause/unpause)
 
       - name: Upload test results
         if: always()

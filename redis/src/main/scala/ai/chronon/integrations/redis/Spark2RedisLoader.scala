@@ -81,15 +81,13 @@ object Spark2RedisLoader {
     val groupBy = new GroupBy().setMetaData(new MetaData().setName(dataset))
     val batchDataset = groupBy.batchDataset
 
-    // Filter to only include data for the specified end date
-    val partitionFilter = s"WHERE ds = '$endDate'"
-
-    // Read data from the upload table
     val dataDf = tableUtils.sql(s"""
-        |SELECT key_bytes, value_bytes, '$batchDataset' as dataset
-        |FROM $tableName
-        |$partitionFilter
-        |""".stripMargin)
+       |SELECT key_bytes, value_bytes, '$batchDataset' as dataset
+       |FROM $tableName
+       |WHERE ds = ?
+       |""".stripMargin)
+       // Or validate endDate format before use:
+    require(endDate.matches("""\d{4}-\d{2}-\d{2}"""), s"Invalid date format: $endDate")
 
     val recordCount = dataDf.count()
     logger.info(s"Loaded $recordCount records from $tableName for partition $endDate")
@@ -201,7 +199,8 @@ object Spark2RedisLoader {
         // Create JedisCluster connection for this partition
         val nodes = clusterNodesBroadcast.value.split(",").map { nodeStr =>
           val parts = nodeStr.trim.split(":")
-          new HostAndPort(parts(0), parts(1).toInt)
+          if (parts.length >= 2) { new HostAndPort(parts(0), parts(1).toInt) }
+          else { new HostAndPort(parts(0), RedisKVStoreConstants.DefaultPort) }
         }.toSet.asJava
 
         val poolConfig = new org.apache.commons.pool2.impl.GenericObjectPoolConfig[redis.clients.jedis.Connection]()

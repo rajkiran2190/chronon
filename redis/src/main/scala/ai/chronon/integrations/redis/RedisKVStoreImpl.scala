@@ -371,29 +371,29 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
     )
 
     try {
-    // Use Spark2RedisLoader to load data from Hive/Delta tables
-    // Similar to how BigTable calls Spark2BigTableLoader.main()
-    val loaderArgs = Array(
-      "--table-name", sourceOfflineTable,
-      "--dataset", destinationOnlineDataSet,
-      "--end-ds", partition,
-      "--redis-cluster-nodes", clusterNodesConfig,
-      "--key-prefix", keyPrefix,
-      "--ttl", DataTTLSeconds.toString
-    )
+      // Use Spark2RedisLoader to load data from Hive/Delta tables
+      // Similar to how BigTable calls Spark2BigTableLoader.main()
+      val loaderArgs = Array (
+        "--table-name", sourceOfflineTable,
+        "--dataset", destinationOnlineDataSet,
+        "--end-ds", partition,
+        "--redis-cluster-nodes", clusterNodesConfig,
+        "--key-prefix", keyPrefix,
+        "--ttl", DataTTLSeconds.toString
+      )
 
-    // Run the Spark job
-    Spark2RedisLoader.main(loaderArgs)
+      // Run the Spark job
+      Spark2RedisLoader.main ( loaderArgs )
 
-    logger.info("Spark-based bulk load completed successfully")
-    metricsContext.distribution("bulkPut.latency", System.currentTimeMillis() - startTs)
-    metricsContext.increment("bulkPut.successes")
-  } catch {
-    case e: Exception =>
-      logger.error(s"Failed to run Spark-based bulk load for $sourceOfflineTable", e)
-      metricsContext.increment("bulkPut.failures", Map("exception" -> e.getClass.getName))
-      throw e
-  }
+      logger.info ( "Spark-based bulk load completed successfully" )
+      metricsContext.distribution ( "bulkPut.latency", System.currentTimeMillis ( ) - startTs )
+      metricsContext.increment ( "bulkPut.successes" )
+    } catch {
+      case e: Exception =>
+        logger.error ( s"Failed to run Spark-based bulk load for $sourceOfflineTable", e )
+        metricsContext.increment ( "bulkPut.failures", Map ( "exception" -> e.getClass.getName ) )
+        throw e
+    }
   }
 
 
