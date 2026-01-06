@@ -135,7 +135,11 @@ class JoinPlanner(join: Join)(implicit outputPartitionSpec: PartitionSpec)
     // currently it works out fine, because we shift forward and back in the engine cancelling out the
     // date ranges that need to be scheduled
     val deps = joinPartNodes.map { jpNode =>
-      TableDependencies.fromTable(jpNode.metaData.outputTable)
+      val shouldShift = join.left.dataModel == DataModel.EVENTS &&
+        jpNode.content.getJoinPart.joinPart.groupBy.inferredAccuracy == Accuracy.SNAPSHOT
+
+      val shiftAmount = if (shouldShift) Some(WindowUtils.Day) else None
+      TableDependencies.fromTable(jpNode.metaData.outputTable, shift = shiftAmount)
     } :+
       TableDependencies.fromTable(leftTable)
 

@@ -39,7 +39,7 @@ object TableDependencies {
           case (Some(api.DataModel.EVENTS), Accuracy.TEMPORAL, DataModel.ENTITIES) =>
             dep(shift = Some(source.partitionInterval)) ++ dep(forMutations = true)
 
-          case (Some(api.DataModel.EVENTS), Accuracy.SNAPSHOT, _) => dep(shift = Some(source.partitionInterval))
+          case (Some(api.DataModel.EVENTS), Accuracy.SNAPSHOT, _) => dep()
 
           case _ => dep()
 
