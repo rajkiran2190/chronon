@@ -79,14 +79,14 @@ object Spark2RedisLoader {
     // Get the batch dataset name (with _batch suffix)
     val groupBy = new GroupBy().setMetaData(new MetaData().setName(dataset))
     val batchDataset = groupBy.batchDataset
+    // Or validate endDate format before use:
+    require(endDate.matches("""\d{4}-\d{2}-\d{2}"""), s"Invalid date format: $endDate")
 
     val dataDf = tableUtils.sql(s"""
        |SELECT key_bytes, value_bytes, '$batchDataset' as dataset
        |FROM $tableName
        |WHERE ds = '$endDate'
        |""".stripMargin)
-    // Or validate endDate format before use:
-    require(endDate.matches("""\d{4}-\d{2}-\d{2}"""), s"Invalid date format: $endDate")
 
     val recordCount = dataDf.count()
     logger.info(s"Loaded $recordCount records from $tableName for partition $endDate")
