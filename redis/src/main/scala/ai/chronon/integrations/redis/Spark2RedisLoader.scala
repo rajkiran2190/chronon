@@ -1,7 +1,7 @@
 package ai.chronon.integrations.redis
 
-import ai.chronon.api.Extensions.GroupByOps
-import ai.chronon.api.{GroupBy, MetaData}
+import ai.chronon.api.Extensions.{GroupByOps, WindowOps, WindowUtils}
+import ai.chronon.api.{GroupBy, MetaData, PartitionSpec}
 import ai.chronon.spark.catalog.TableUtils
 import ai.chronon.spark.submission.SparkSessionBuilder
 import org.apache.spark.sql.functions._
@@ -96,8 +96,13 @@ object Spark2RedisLoader {
       return
     }
 
+    // Calculate timestamp for this batch (endDs + 1 Day)
+    // This ensures deterministic timestamps: same partition = same timestamp
+    val partitionSpec = PartitionSpec("ds", "yyyy-MM-dd", WindowUtils.Day.millis)
+    val endDsPlusOne = partitionSpec.epochMillis(endDate) + partitionSpec.spanMillis
+
     // Transform DataFrame: Build Redis keys and prepend timestamp to values
-    val transformedDf = buildTransformedDataFrame(dataDf, keyPrefix, spark)
+    val transformedDf = buildTransformedDataFrame(dataDf, keyPrefix, endDsPlusOne, spark)
 
     // Write to Redis using foreachPartition with direct Jedis API
     writeToRedis(transformedDf, clusterNodes, ttl)
@@ -151,7 +156,7 @@ object Spark2RedisLoader {
   /** Build Redis key with hash tags and prepend timestamp to value.
     * This matches the format used by multiPut/multiGet.
     */
-  def buildTransformedDataFrame(df: DataFrame, keyPrefix: String, spark: SparkSession): DataFrame = {
+  def buildTransformedDataFrame(df: DataFrame, keyPrefix: String, batchTimestamp: Long,  spark: SparkSession): DataFrame = {
     import spark.implicits._
 
     // UDF to build Redis key with hash tags for cluster co-location
@@ -163,14 +168,13 @@ object Spark2RedisLoader {
 
     // UDF to prepend 8-byte timestamp to value bytes
     // This matches the format expected by multiGet
-    val prependTimestampUDF = udf((valueBytes: Array[Byte]) => {
-      val timestamp = System.currentTimeMillis()
-      val timestampBytes = java.nio.ByteBuffer.allocate(8).putLong(timestamp).array()
+    val prependTimestampUDF = udf((valueBytes: Array[Byte], ts: Long) => {
+      val timestampBytes = java.nio.ByteBuffer.allocate(8).putLong(ts).array()
       timestampBytes ++ valueBytes
     })
 
     df.withColumn("redis_key", buildRedisKeyUDF(col("key_bytes"), col("dataset")))
-      .withColumn("redis_value", prependTimestampUDF(col("value_bytes")))
+      .withColumn("redis_value", prependTimestampUDF(col("value_bytes"), lit(batchTimestamp)))
       .select("redis_key", "redis_value")
   }
 

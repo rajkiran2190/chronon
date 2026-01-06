@@ -84,7 +84,7 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
         // Configure Redis to announce the external host and mapped port
         jedis.configSet("cluster-announce-ip", host)
         jedis.configSet("cluster-announce-port", mappedPort.toString)
-        // Bus port is typically port + 10000, use mapped port for this too
+        // Bus port is typically port + 5000, use mapped port for this too
         jedis.configSet("cluster-announce-bus-port", (mappedPort + 5000).toString)
 
         println(s"  ✓ Node $internalPort now announces $host:$mappedPort")
@@ -981,8 +981,12 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
       val tableUtils = ai.chronon.spark.catalog.TableUtils(spark)
       val dataDf = tableUtils.sql(s"SELECT key_bytes, value_bytes, '$batchDataset' as dataset FROM $tempTable WHERE ds = '$partition'")
 
+      import ai.chronon.api.Extensions.{WindowOps, WindowUtils}
+      val partitionSpec = ai.chronon.api.PartitionSpec("ds", "yyyy-MM-dd", WindowUtils.Day.millis)
+      val endDsPlusOne = partitionSpec.epochMillis(partition) + partitionSpec.spanMillis
+
       // Transform data using Spark2RedisLoader's transformation logic
-      val transformedDf = ai.chronon.integrations.redis.Spark2RedisLoader.buildTransformedDataFrame(dataDf, "chronon", spark)
+      val transformedDf = ai.chronon.integrations.redis.Spark2RedisLoader.buildTransformedDataFrame(dataDf, "chronon", endDsPlusOne, spark)
 
       // Write using the test-friendly method (avoids executor connection issues)
       ai.chronon.integrations.redis.Spark2RedisLoader.writeWithExistingConnection(transformedDf, jedisCluster, 432000)
