@@ -9,16 +9,15 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 import org.slf4j.LoggerFactory
 
-/**
- * This Spark app handles loading Batch IR data into Redis Cluster.
- * Similar to Spark2BigTableLoader, this uses DataFrame transformations to prepare data,
- * but writes directly using Jedis API via foreachPartition.
- *
- * Why not use a Spark-Redis connector?
- * - RedisLabs' spark-redis (org.apache.spark.sql.redis) only supports Jedis 3.x (unmaintained since 2021)
- * - No actively maintained connector exists for Jedis 5.x + Spark 3.5.x
- * - Manual foreachPartition approach gives us full control and works with modern Jedis
- */
+/** This Spark app handles loading Batch IR data into Redis Cluster.
+  * Similar to Spark2BigTableLoader, this uses DataFrame transformations to prepare data,
+  * but writes directly using Jedis API via foreachPartition.
+  *
+  * Why not use a Spark-Redis connector?
+  * - RedisLabs' spark-redis (org.apache.spark.sql.redis) only supports Jedis 3.x (unmaintained since 2021)
+  * - No actively maintained connector exists for Jedis 5.x + Spark 3.5.x
+  * - Manual foreachPartition approach gives us full control and works with modern Jedis
+  */
 object Spark2RedisLoader {
   private val logger = LoggerFactory.getLogger(getClass)
 
@@ -84,9 +83,9 @@ object Spark2RedisLoader {
     val dataDf = tableUtils.sql(s"""
        |SELECT key_bytes, value_bytes, '$batchDataset' as dataset
        |FROM $tableName
-       |WHERE ds = ?
+       |WHERE ds = '$endDate'
        |""".stripMargin)
-       // Or validate endDate format before use:
+    // Or validate endDate format before use:
     require(endDate.matches("""\d{4}-\d{2}-\d{2}"""), s"Invalid date format: $endDate")
 
     val recordCount = dataDf.count()
@@ -106,18 +105,17 @@ object Spark2RedisLoader {
     logger.info(s"Successfully bulk loaded $recordCount records to Redis dataset $batchDataset")
   }
 
-  /**
-   * Test-friendly method that accepts an existing JedisCluster connection.
-   * This avoids executor connection issues in Testcontainers scenarios.
-   *
-   * Why is this needed for tests?
-   * - Testcontainers uses Docker port mapping (internal 7000 -> external 32xxx)
-   * - Even with cluster-announce-ip/port reconfiguration, Spark executors in local mode
-   *   sometimes have timing/networking issues connecting to the mapped ports
-   * - This method runs everything from the driver using the test's pre-configured JedisCluster
-   *   which has proper HostAndPortMapper to handle the port mapping
-   * - In production, foreachPartition works perfectly (no Docker, real routable IPs)
-   */
+  /** Test-friendly method that accepts an existing JedisCluster connection.
+    * This avoids executor connection issues in Testcontainers scenarios.
+    *
+    * Why is this needed for tests?
+    * - Testcontainers uses Docker port mapping (internal 7000 -> external 32xxx)
+    * - Even with cluster-announce-ip/port reconfiguration, Spark executors in local mode
+    *   sometimes have timing/networking issues connecting to the mapped ports
+    * - This method runs everything from the driver using the test's pre-configured JedisCluster
+    *   which has proper HostAndPortMapper to handle the port mapping
+    * - In production, foreachPartition works perfectly (no Docker, real routable IPs)
+    */
   def writeWithExistingConnection(df: DataFrame, jedisCluster: redis.clients.jedis.JedisCluster, ttl: Int): Unit = {
     import java.nio.charset.StandardCharsets
 
@@ -150,10 +148,9 @@ object Spark2RedisLoader {
     logger.info("Successfully wrote data to Redis using provided connection")
   }
 
-  /**
-   * Build Redis key with hash tags and prepend timestamp to value.
-   * This matches the format used by multiPut/multiGet.
-   */
+  /** Build Redis key with hash tags and prepend timestamp to value.
+    * This matches the format used by multiPut/multiGet.
+    */
   def buildTransformedDataFrame(df: DataFrame, keyPrefix: String, spark: SparkSession): DataFrame = {
     import spark.implicits._
 
@@ -177,13 +174,12 @@ object Spark2RedisLoader {
       .select("redis_key", "redis_value")
   }
 
-  /**
-   * Write DataFrame to Redis using foreachPartition with direct Jedis API.
-   * Each partition creates its own JedisCluster connection for efficient batch writes.
-   *
-   * Note: Redis cluster topology must be properly configured to announce
-   * externally accessible IPs/ports for Spark executors to connect.
-   */
+  /** Write DataFrame to Redis using foreachPartition with direct Jedis API.
+    * Each partition creates its own JedisCluster connection for efficient batch writes.
+    *
+    * Note: Redis cluster topology must be properly configured to announce
+    * externally accessible IPs/ports for Spark executors to connect.
+    */
   private def writeToRedis(df: DataFrame, clusterNodes: String, ttl: Int): Unit = {
     import redis.clients.jedis.{HostAndPort, JedisCluster}
     import scala.jdk.CollectionConverters._
@@ -197,11 +193,15 @@ object Spark2RedisLoader {
     df.foreachPartition { rows: Iterator[org.apache.spark.sql.Row] =>
       if (rows.hasNext) {
         // Create JedisCluster connection for this partition
-        val nodes = clusterNodesBroadcast.value.split(",").map { nodeStr =>
-          val parts = nodeStr.trim.split(":")
-          if (parts.length >= 2) { new HostAndPort(parts(0), parts(1).toInt) }
-          else { new HostAndPort(parts(0), RedisKVStoreConstants.DefaultPort) }
-        }.toSet.asJava
+        val nodes = clusterNodesBroadcast.value
+          .split(",")
+          .map { nodeStr =>
+            val parts = nodeStr.trim.split(":")
+            if (parts.length >= 2) { new HostAndPort(parts(0), parts(1).toInt) }
+            else { new HostAndPort(parts(0), RedisKVStoreConstants.DefaultPort) }
+          }
+          .toSet
+          .asJava
 
         val poolConfig = new org.apache.commons.pool2.impl.GenericObjectPoolConfig[redis.clients.jedis.Connection]()
         poolConfig.setMaxTotal(10)

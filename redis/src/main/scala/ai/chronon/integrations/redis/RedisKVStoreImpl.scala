@@ -19,32 +19,31 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
-/**
- * Redis Cluster-based KV store implementation with hash tags.
- * We store a few kinds of data in our KV store:
- * 1) Entity data - Configuration data like thrift serialized GroupBy / Join configs.
- * 2) Timeseries data - Batch IRs or streaming tiles for feature fetching.
- *
- * Key structure (with hash tags for cluster co-location):
- * - Batch IRs: chronon:{dataset}:{base64_key} (stored as strings with 8-byte timestamp prefix)
- * - Time-series: chronon:{dataset}:{base64_key}:{dayTs} (stored as sorted sets)
- * Hash tags {base64_key} ensure all data for an entity lands on the same cluster node,
- * enabling efficient pipelining for multi-day queries and co-locating batch IR with streaming tiles.
- *
- * Time-series data format in sorted sets:
- * - Score: timestamp in milliseconds
- * - Member: timestamp (8 bytes) + value bytes
- * Why timestamp prefix in members?
- * In BigTable, cells are uniquely identified by (row, column, timestamp), allowing the same value
- * at different timestamps. Redis sorted sets require unique members - without the prefix,
- * the same value at different timestamps would overwrite each other (last score wins).
- * The 8-byte timestamp prefix makes each (timestamp, value) pair unique.
- *
- * Last-Write-Wins (LWW) semantics:
- * Writing to the same timestamp twice deletes the first value via ZREMRANGEBYSCORE before ZADD.
- * This matches BigTable's deleteCells + setCell pattern.
- * Data is stored with a default TTL of 5 days (matching BigTable implementation).
- */
+/** Redis Cluster-based KV store implementation with hash tags.
+  * We store a few kinds of data in our KV store:
+  * 1) Entity data - Configuration data like thrift serialized GroupBy / Join configs.
+  * 2) Timeseries data - Batch IRs or streaming tiles for feature fetching.
+  *
+  * Key structure (with hash tags for cluster co-location):
+  * - Batch IRs: chronon:{dataset}:{base64_key} (stored as strings with 8-byte timestamp prefix)
+  * - Time-series: chronon:{dataset}:{base64_key}:{dayTs} (stored as sorted sets)
+  * Hash tags {base64_key} ensure all data for an entity lands on the same cluster node,
+  * enabling efficient pipelining for multi-day queries and co-locating batch IR with streaming tiles.
+  *
+  * Time-series data format in sorted sets:
+  * - Score: timestamp in milliseconds
+  * - Member: timestamp (8 bytes) + value bytes
+  * Why timestamp prefix in members?
+  * In BigTable, cells are uniquely identified by (row, column, timestamp), allowing the same value
+  * at different timestamps. Redis sorted sets require unique members - without the prefix,
+  * the same value at different timestamps would overwrite each other (last score wins).
+  * The 8-byte timestamp prefix makes each (timestamp, value) pair unique.
+  *
+  * Last-Write-Wins (LWW) semantics:
+  * Writing to the same timestamp twice deletes the first value via ZREMRANGEBYSCORE before ZADD.
+  * This matches BigTable's deleteCells + setCell pattern.
+  * Data is stored with a default TTL of 5 days (matching BigTable implementation).
+  */
 class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = Map.empty) extends KVStore {
   @transient override lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
@@ -82,18 +81,19 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
     }
 
     // Process each group separately
-    val groupFutures: Seq[Future[Seq[GetResponse]]] = requestGroups.map { case ((dataset, startTs, endTs), groupRequests) =>
-      readRowsMultiGet(dataset, groupRequests, startTs, endTs)
+    val groupFutures: Seq[Future[Seq[GetResponse]]] = requestGroups.map {
+      case ((dataset, startTs, endTs), groupRequests) =>
+        readRowsMultiGet(dataset, groupRequests, startTs, endTs)
     }.toList
 
     Future.sequence(groupFutures).map(_.flatten)
   }
 
   private def readRowsMultiGet(
-    dataset: String,
-    requests: Seq[GetRequest],
-    startTsMillis: Option[Long],
-    endTsMillis: Option[Long]
+      dataset: String,
+      requests: Seq[GetRequest],
+      startTsMillis: Option[Long],
+      endTsMillis: Option[Long]
   ): Future[Seq[GetResponse]] = {
     val datasetMetricsContext = tableToContext.getOrElseUpdate(
       dataset,
@@ -152,13 +152,13 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
   }
 
   private def getTimeSeriesData(
-    jedisCluster: JedisCluster,
-    keyBytes: Seq[Byte],
-    dataset: String,
-    startTs: Long,
-    endTs: Long,
-    maybeTileSize: Option[Long],
-    keyPrefix: String
+      jedisCluster: JedisCluster,
+      keyBytes: Seq[Byte],
+      dataset: String,
+      startTs: Long,
+      endTs: Long,
+      maybeTileSize: Option[Long],
+      keyPrefix: String
   ): Seq[TimedValue] = {
     val millisPerDay = 1.day.toMillis
     val startDay = startTs - (startTs % millisPerDay)
@@ -169,15 +169,17 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
     val allTimedValues = dayRange.flatMap { dayTs =>
       val redisKey = maybeTileSize match {
         case Some(tileSize) => buildTiledRedisKey(keyBytes, dataset, dayTs, tileSize, keyPrefix)
-        case None => buildRedisKey(keyBytes, dataset, Some(dayTs), keyPrefix)
+        case None           => buildRedisKey(keyBytes, dataset, Some(dayTs), keyPrefix)
       }
 
       // Use ZRANGEBYSCORE to get values in the time range
-      val tuples = jedisCluster.zrangeByScoreWithScores(
-        redisKey.getBytes(StandardCharsets.UTF_8),
-        startTs.toDouble,
-        endTs.toDouble
-      ).asScala
+      val tuples = jedisCluster
+        .zrangeByScoreWithScores(
+          redisKey.getBytes(StandardCharsets.UTF_8),
+          startTs.toDouble,
+          endTs.toDouble
+        )
+        .asScala
 
       tuples.map { tuple =>
         // Extract value bytes from the member (skip first 8 bytes which contain the timestamp prefix)
@@ -197,9 +199,9 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
     logger.info(s"Performing list for ${request.dataset}")
 
     val listLimit = request.props.get(ListLimit) match {
-      case Some(value: Int) => value
+      case Some(value: Int)    => value
       case Some(value: String) => value.toInt
-      case _ => DefaultListLimit
+      case _                   => DefaultListLimit
     }
 
     val maybeListEntityType = request.props.get(ListEntityType)
@@ -229,7 +231,7 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
 
         val cursor = maybeStartKey match {
           case Some(key: Array[Byte]) => new String(key, StandardCharsets.UTF_8)
-          case _ => ScanParams.SCAN_POINTER_START
+          case _                      => ScanParams.SCAN_POINTER_START
         }
 
         // For Redis Cluster, we need to scan all master nodes
@@ -316,7 +318,7 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
               val tileKey = TilingUtils.deserializeTileKey(request.keyBytes)
               val baseKeyBytes = tileKey.keyBytes.asScala.map(_.toByte).toSeq
               (buildTiledRedisKey(baseKeyBytes, request.dataset, ts, tileKey.tileSizeMillis, keyPrefix),
-                tileKey.tileStartTimestampMillis)
+               tileKey.tileStartTimestampMillis)
             case _ =>
               (buildRedisKey(request.keyBytes, request.dataset, keyPrefix = keyPrefix), timestampInPutRequest)
           }
@@ -361,41 +363,46 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
   override def bulkPut(sourceOfflineTable: String, destinationOnlineDataSet: String, partition: String): Unit = {
     logger.info(
       s"Triggering bulk load for dataset: $destinationOnlineDataSet, " +
-      s"table: $sourceOfflineTable, partition: $partition")
+        s"table: $sourceOfflineTable, partition: $partition")
     // Read from Hive/Iceberg table and write to Redis in batches
     val startTs = System.currentTimeMillis()
 
     logger.info(
       s"Triggering Spark-based bulk load for dataset: $destinationOnlineDataSet, " +
-      s"table: $sourceOfflineTable, partition: $partition"
+        s"table: $sourceOfflineTable, partition: $partition"
     )
 
     try {
       // Use Spark2RedisLoader to load data from Hive/Delta tables
       // Similar to how BigTable calls Spark2BigTableLoader.main()
-      val loaderArgs = Array (
-        "--table-name", sourceOfflineTable,
-        "--dataset", destinationOnlineDataSet,
-        "--end-ds", partition,
-        "--redis-cluster-nodes", clusterNodesConfig,
-        "--key-prefix", keyPrefix,
-        "--ttl", DataTTLSeconds.toString
+      val loaderArgs = Array(
+        "--table-name",
+        sourceOfflineTable,
+        "--dataset",
+        destinationOnlineDataSet,
+        "--end-ds",
+        partition,
+        "--redis-cluster-nodes",
+        clusterNodesConfig,
+        "--key-prefix",
+        keyPrefix,
+        "--ttl",
+        DataTTLSeconds.toString
       )
 
       // Run the Spark job
-      Spark2RedisLoader.main ( loaderArgs )
+      Spark2RedisLoader.main(loaderArgs)
 
-      logger.info ( "Spark-based bulk load completed successfully" )
-      metricsContext.distribution ( "bulkPut.latency", System.currentTimeMillis ( ) - startTs )
-      metricsContext.increment ( "bulkPut.successes" )
+      logger.info("Spark-based bulk load completed successfully")
+      metricsContext.distribution("bulkPut.latency", System.currentTimeMillis() - startTs)
+      metricsContext.increment("bulkPut.successes")
     } catch {
       case e: Exception =>
-        logger.error ( s"Failed to run Spark-based bulk load for $sourceOfflineTable", e )
-        metricsContext.increment ( "bulkPut.failures", Map ( "exception" -> e.getClass.getName ) )
+        logger.error(s"Failed to run Spark-based bulk load for $sourceOfflineTable", e)
+        metricsContext.increment("bulkPut.failures", Map("exception" -> e.getClass.getName))
         throw e
     }
   }
-
 
   override def init(props: Map[String, Any]): Unit = {
     super.init(props)
@@ -437,12 +444,14 @@ object RedisKVStore {
   case object StreamingTable extends TableType
   case object TileSummaries extends TableType
 
-  /**
-   * Build a Redis key with optional timestamp for time-series data.
-   * Key format: [prefix]:{dataset}:{base64_key}[:{dayTs}]
-   * @param keyPrefix Optional prefix for namespace isolation (can be empty string)
-   */
-  def buildRedisKey(baseKeyBytes: Seq[Byte], dataset: String, maybeTs: Option[Long] = None, keyPrefix: String = DefaultKeyPrefix): String = {
+  /** Build a Redis key with optional timestamp for time-series data.
+    * Key format: [prefix]:{dataset}:{base64_key}[:{dayTs}]
+    * @param keyPrefix Optional prefix for namespace isolation (can be empty string)
+    */
+  def buildRedisKey(baseKeyBytes: Seq[Byte],
+                    dataset: String,
+                    maybeTs: Option[Long] = None,
+                    keyPrefix: String = DefaultKeyPrefix): String = {
     val base64Key = java.util.Base64.getEncoder.encodeToString(baseKeyBytes.toArray)
     val prefix = if (keyPrefix.isEmpty) "" else s"$keyPrefix$KeySeparator"
     // Use hash tag {base64Key} to ensure all entity data lands on same cluster node
@@ -456,12 +465,15 @@ object RedisKVStore {
     }
   }
 
-  /**
-   * Build a Redis key for tiled data.
-   * Key format: [prefix]:{dataset}:{base64_key}:{dayTs}:{tileSize}
-   * @param keyPrefix Optional prefix for namespace isolation (can be empty string)
-   */
-  def buildTiledRedisKey(baseKeyBytes: Seq[Byte], dataset: String, ts: Long, tileSizeMs: Long, keyPrefix: String = DefaultKeyPrefix): String = {
+  /** Build a Redis key for tiled data.
+    * Key format: [prefix]:{dataset}:{base64_key}:{dayTs}:{tileSize}
+    * @param keyPrefix Optional prefix for namespace isolation (can be empty string)
+    */
+  def buildTiledRedisKey(baseKeyBytes: Seq[Byte],
+                         dataset: String,
+                         ts: Long,
+                         tileSizeMs: Long,
+                         keyPrefix: String = DefaultKeyPrefix): String = {
     val base64Key = java.util.Base64.getEncoder.encodeToString(baseKeyBytes.toArray)
     val dayTs = ts - (ts % 1.day.toMillis)
     val prefix = if (keyPrefix.isEmpty) "" else s"$keyPrefix$KeySeparator"
@@ -469,16 +481,14 @@ object RedisKVStore {
     s"$prefix$dataset$KeySeparator{$base64Key}$KeySeparator$dayTs$KeySeparator$tileSizeMs"
   }
 
-  /**
-   * Determine table type from dataset name.
-   */
+  /** Determine table type from dataset name.
+    */
   def getTableType(dataset: String): TableType = {
     dataset match {
-      case d if d.endsWith("_BATCH") => BatchTable
+      case d if d.endsWith("_BATCH")     => BatchTable
       case d if d.endsWith("_STREAMING") => StreamingTable
-      case d if d.endsWith("SUMMARIES") => TileSummaries
-      case _ => BatchTable
+      case d if d.endsWith("SUMMARIES")  => TileSummaries
+      case _                             => BatchTable
     }
   }
 }
-

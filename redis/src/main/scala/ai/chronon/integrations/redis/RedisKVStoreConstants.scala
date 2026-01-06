@@ -1,9 +1,8 @@
 package ai.chronon.integrations.redis
 
-/**
- * Constants for Redis KVStore configuration and operation.
- * These can be overridden via environment variables or userConf in RedisApiImpl.
- */
+/** Constants for Redis KVStore configuration and operation.
+  * These can be overridden via environment variables or userConf in RedisApiImpl.
+  */
 object RedisKVStoreConstants {
   // Key structure
   // Note: DefaultKeyPrefix can be set to empty string ("") for dedicated Redis deployments
@@ -44,4 +43,3 @@ object RedisKVStoreConstants {
   val PropMaxConnections = "max-connections"
   val PropKeyPrefix = "key-prefix"
 }
-

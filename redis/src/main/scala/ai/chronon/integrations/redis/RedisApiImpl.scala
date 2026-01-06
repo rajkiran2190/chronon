@@ -10,19 +10,18 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
 
-/**
- * Redis Cluster-based Api implementation.
- *
- * Configuration is loaded from environment variables or user conf map:
- * - REDIS_CLUSTER_NODES: Comma-separated cluster nodes (e.g., "node1:6379,node2:6379,node3:6379")
- * - REDIS_PASSWORD: Redis password (optional)
- * - REDIS_MAX_CONNECTIONS: Maximum pool connections (default: 50)
- * - REDIS_MIN_IDLE_CONNECTIONS: Minimum idle connections (default: 5)
- * - REDIS_MAX_IDLE_CONNECTIONS: Maximum idle connections (default: 10)
- * - REDIS_CONNECTION_TIMEOUT_MS: Connection timeout in milliseconds (default: 5000)
- * - REDIS_SO_TIMEOUT_MS: Socket timeout in milliseconds (default: 2000)
- * - REDIS_MAX_REDIRECTIONS: Maximum cluster redirections (default: 5)
- */
+/** Redis Cluster-based Api implementation.
+  *
+  * Configuration is loaded from environment variables or user conf map:
+  * - REDIS_CLUSTER_NODES: Comma-separated cluster nodes (e.g., "node1:6379,node2:6379,node3:6379")
+  * - REDIS_PASSWORD: Redis password (optional)
+  * - REDIS_MAX_CONNECTIONS: Maximum pool connections (default: 50)
+  * - REDIS_MIN_IDLE_CONNECTIONS: Minimum idle connections (default: 5)
+  * - REDIS_MAX_IDLE_CONNECTIONS: Maximum idle connections (default: 10)
+  * - REDIS_CONNECTION_TIMEOUT_MS: Connection timeout in milliseconds (default: 5000)
+  * - REDIS_SO_TIMEOUT_MS: Socket timeout in milliseconds (default: 2000)
+  * - REDIS_MAX_REDIRECTIONS: Maximum cluster redirections (default: 5)
+  */
 class RedisApiImpl(conf: Map[String, String]) extends Api(conf) {
   import RedisApiImpl._
 
@@ -49,28 +48,43 @@ class RedisApiImpl(conf: Map[String, String]) extends Api(conf) {
     // Parse cluster nodes from environment or config
     val nodesStr = getOrElseThrow(RedisKVStoreConstants.EnvRedisClusterNodes, conf)
     val password = getOptional(RedisKVStoreConstants.EnvRedisPassword, conf)
-    val maxConnections = getOptional(RedisKVStoreConstants.EnvRedisMaxConnections, conf).map(_.toInt).getOrElse(RedisKVStoreConstants.DefaultMaxConnections)
-    val minIdleConnections = getOptional(RedisKVStoreConstants.EnvRedisMinIdleConnections, conf).map(_.toInt).getOrElse(RedisKVStoreConstants.DefaultMinIdleConnections)
-    val maxIdleConnections = getOptional(RedisKVStoreConstants.EnvRedisMaxIdleConnections, conf).map(_.toInt).getOrElse(RedisKVStoreConstants.DefaultMaxIdleConnections)
-    val connectionTimeoutMs = getOptional(RedisKVStoreConstants.EnvRedisConnectionTimeoutMs, conf).map(_.toInt).getOrElse(RedisKVStoreConstants.DefaultConnectionTimeoutMs)
-    val soTimeoutMs = getOptional(RedisKVStoreConstants.EnvRedisSoTimeoutMs, conf).map(_.toInt).getOrElse(RedisKVStoreConstants.DefaultSoTimeoutMs)
-    val maxRedirections = getOptional(RedisKVStoreConstants.EnvRedisMaxRedirections, conf).map(_.toInt).getOrElse(RedisKVStoreConstants.DefaultMaxRedirections)
+    val maxConnections = getOptional(RedisKVStoreConstants.EnvRedisMaxConnections, conf)
+      .map(_.toInt)
+      .getOrElse(RedisKVStoreConstants.DefaultMaxConnections)
+    val minIdleConnections = getOptional(RedisKVStoreConstants.EnvRedisMinIdleConnections, conf)
+      .map(_.toInt)
+      .getOrElse(RedisKVStoreConstants.DefaultMinIdleConnections)
+    val maxIdleConnections = getOptional(RedisKVStoreConstants.EnvRedisMaxIdleConnections, conf)
+      .map(_.toInt)
+      .getOrElse(RedisKVStoreConstants.DefaultMaxIdleConnections)
+    val connectionTimeoutMs = getOptional(RedisKVStoreConstants.EnvRedisConnectionTimeoutMs, conf)
+      .map(_.toInt)
+      .getOrElse(RedisKVStoreConstants.DefaultConnectionTimeoutMs)
+    val soTimeoutMs = getOptional(RedisKVStoreConstants.EnvRedisSoTimeoutMs, conf)
+      .map(_.toInt)
+      .getOrElse(RedisKVStoreConstants.DefaultSoTimeoutMs)
+    val maxRedirections = getOptional(RedisKVStoreConstants.EnvRedisMaxRedirections, conf)
+      .map(_.toInt)
+      .getOrElse(RedisKVStoreConstants.DefaultMaxRedirections)
 
     // Parse cluster nodes: "node1:6379,node2:6379,node3:6379"
-    val clusterNodes = nodesStr.split(",").map { node =>
-      val parts = node.trim.split(":")
-      if (parts.length == 2) {
-        new HostAndPort(parts(0), parts(1).toInt)
-      } else {
-        new HostAndPort(parts(0), RedisKVStoreConstants.DefaultPort)
+    val clusterNodes = nodesStr
+      .split(",")
+      .map { node =>
+        val parts = node.trim.split(":")
+        if (parts.length == 2) {
+          new HostAndPort(parts(0), parts(1).toInt)
+        } else {
+          new HostAndPort(parts(0), RedisKVStoreConstants.DefaultPort)
+        }
       }
-    }.toSet
+      .toSet
 
     logger.info(
       s"Creating Redis Cluster KVStore with nodes: ${clusterNodes.mkString(", ")}. " +
-      s"Params: maxConnections=$maxConnections, minIdle=$minIdleConnections, " +
-      s"maxIdle=$maxIdleConnections, connectionTimeout=$connectionTimeoutMs, " +
-      s"soTimeout=$soTimeoutMs, maxRedirections=$maxRedirections")
+        s"Params: maxConnections=$maxConnections, minIdle=$minIdleConnections, " +
+        s"maxIdle=$maxIdleConnections, connectionTimeout=$connectionTimeoutMs, " +
+        s"soTimeout=$soTimeoutMs, maxRedirections=$maxRedirections")
 
     val poolConfig = new JedisPoolConfig()
     poolConfig.setMaxTotal(maxConnections)
@@ -82,12 +96,26 @@ class RedisApiImpl(conf: Map[String, String]) extends Api(conf) {
 
     val jedisCluster = password match {
       case Some(pwd) =>
-        new JedisCluster(clusterNodes.asJava, connectionTimeoutMs, soTimeoutMs, maxRedirections, pwd, poolConfig.asInstanceOf[org.apache.commons.pool2.impl.GenericObjectPoolConfig[redis.clients.jedis.Connection]])
+        new JedisCluster(
+          clusterNodes.asJava,
+          connectionTimeoutMs,
+          soTimeoutMs,
+          maxRedirections,
+          pwd,
+          poolConfig.asInstanceOf[org.apache.commons.pool2.impl.GenericObjectPoolConfig[redis.clients.jedis.Connection]]
+        )
       case None =>
-        new JedisCluster(clusterNodes.asJava, connectionTimeoutMs, soTimeoutMs, maxRedirections, poolConfig.asInstanceOf[org.apache.commons.pool2.impl.GenericObjectPoolConfig[redis.clients.jedis.Connection]])
+        new JedisCluster(
+          clusterNodes.asJava,
+          connectionTimeoutMs,
+          soTimeoutMs,
+          maxRedirections,
+          poolConfig.asInstanceOf[org.apache.commons.pool2.impl.GenericObjectPoolConfig[redis.clients.jedis.Connection]]
+        )
     }
 
-    val keyPrefix = getOptional(RedisKVStoreConstants.EnvRedisKeyPrefix, conf).getOrElse(RedisKVStoreConstants.DefaultKeyPrefix)
+    val keyPrefix =
+      getOptional(RedisKVStoreConstants.EnvRedisKeyPrefix, conf).getOrElse(RedisKVStoreConstants.DefaultKeyPrefix)
     val kvStore = new RedisKVStoreImpl(jedisCluster, Map("redis.key.prefix" -> keyPrefix))
     kvStore.init()
     kvStore
@@ -167,4 +195,3 @@ object RedisApiImpl {
       throw new IllegalArgumentException(s"$key environment variable not set")
     )
 }
-
