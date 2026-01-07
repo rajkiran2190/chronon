@@ -58,6 +58,12 @@ object Spark2RedisLoader {
       default = Some(432000)
     )
 
+    val batchSize: ScallopOption[Int] = opt[Int](
+      name = "batch-size",
+      descr = "Number of records to batch before syncing pipeline (default: 1000)",
+      default = Some(1000)
+    )
+
     verify()
   }
 
@@ -70,8 +76,10 @@ object Spark2RedisLoader {
     val clusterNodes = config.redisClusterNodes()
     val keyPrefix = config.keyPrefix()
     val ttl = config.ttl()
+    val batchSize = config.batchSize()
 
-    logger.info(s"Starting Redis bulk load: table=$tableName, dataset=$dataset, partition=$endDate")
+    logger.info(
+      s"Starting Redis bulk load: table=$tableName, dataset=$dataset, partition=$endDate, batchSize=$batchSize")
 
     val spark = SparkSessionBuilder.build(s"Spark2RedisLoader-$tableName")
     val tableUtils = TableUtils(spark)
@@ -105,7 +113,7 @@ object Spark2RedisLoader {
     val transformedDf = buildTransformedDataFrame(dataDf, keyPrefix, endDsPlusOne, spark)
 
     // Write to Redis using foreachPartition with direct Jedis API
-    writeToRedis(transformedDf, clusterNodes, ttl)
+    writeToRedis(transformedDf, clusterNodes, ttl, batchSize)
 
     logger.info(s"Successfully bulk loaded $recordCount records to Redis dataset $batchDataset")
   }
@@ -121,17 +129,19 @@ object Spark2RedisLoader {
     *   which has proper HostAndPortMapper to handle the port mapping
     * - In production, foreachPartition works perfectly (no Docker, real routable IPs)
     */
-  def writeWithExistingConnection(df: DataFrame, jedisCluster: redis.clients.jedis.JedisCluster, ttl: Int): Unit = {
+  def writeWithExistingConnection(df: DataFrame,
+                                  jedisCluster: redis.clients.jedis.JedisCluster,
+                                  ttl: Int,
+                                  batchSize: Int = 1000): Unit = {
     import java.nio.charset.StandardCharsets
 
-    logger.info(s"Writing ${df.count()} records to Redis using provided JedisCluster connection")
+    logger.info(s"Writing ${df.count()} records to Redis using provided JedisCluster connection (batchSize=$batchSize)")
 
     // Collect to driver and write directly (avoids executor connection issues in tests)
     val rows = df.collect()
 
     val pipeline = jedisCluster.pipelined()
     var batchCount = 0
-    val batchSize = 1000
 
     rows.foreach { row =>
       val key = row.getAs[String]("redis_key")
@@ -166,7 +176,7 @@ object Spark2RedisLoader {
     val buildRedisKeyUDF = udf((keyBytes: Array[Byte], dataset: String) => {
       val base64Key = java.util.Base64.getEncoder.encodeToString(keyBytes)
       val prefix = if (keyPrefix.isEmpty) "" else s"$keyPrefix${RedisKVStoreConstants.KeySeparator}"
-      s"$prefix$dataset${RedisKVStoreConstants.KeySeparator}{$base64Key}"
+      s"$prefix{$dataset${RedisKVStoreConstants.KeySeparator}$base64Key}"
     })
 
     // UDF to prepend 8-byte timestamp to value bytes
@@ -187,7 +197,7 @@ object Spark2RedisLoader {
     * Note: Redis cluster topology must be properly configured to announce
     * externally accessible IPs/ports for Spark executors to connect.
     */
-  private def writeToRedis(df: DataFrame, clusterNodes: String, ttl: Int): Unit = {
+  private def writeToRedis(df: DataFrame, clusterNodes: String, ttl: Int, batchSize: Int): Unit = {
     import redis.clients.jedis.{HostAndPort, JedisCluster}
     import scala.jdk.CollectionConverters._
     import java.nio.charset.StandardCharsets
@@ -195,7 +205,7 @@ object Spark2RedisLoader {
     val clusterNodesBroadcast = df.sparkSession.sparkContext.broadcast(clusterNodes)
     val ttlBroadcast = df.sparkSession.sparkContext.broadcast(ttl)
 
-    logger.info(s"Writing to Redis using foreachPartition: nodes=${clusterNodes}")
+    logger.info(s"Writing to Redis using foreachPartition: nodes=${clusterNodes}, batchSize=$batchSize")
 
     df.foreachPartition { rows: Iterator[org.apache.spark.sql.Row] =>
       if (rows.hasNext) {
@@ -224,7 +234,6 @@ object Spark2RedisLoader {
           // Use pipeline for batching within each partition
           val pipeline = jedisCluster.pipelined()
           var batchCount = 0
-          val batchSize = 1000
 
           rows.foreach { row =>
             val key = row.getAs[String]("redis_key")

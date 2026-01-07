@@ -1,31 +1,28 @@
 package ai.chronon.integrations.redis
 
 /** Constants for Redis KVStore configuration and operation.
-  * These can be overridden via environment variables or userConf in RedisApiImpl.
   */
 object RedisKVStoreConstants {
-  // Key structure
-  // Note: DefaultKeyPrefix can be set to empty string ("") for dedicated Redis deployments
-  // to save memory (~8 bytes per key). Default "chronon" provides namespace isolation.
-  val DefaultKeyPrefix = "chronon"
-  val KeySeparator = ":"
+  val DefaultKeyPrefix =
+    "chronon" // Namespace isolation for multi-tenant deployments (set to "" for dedicated Redis to save ~8 bytes/key)
+  val KeySeparator = ":" // Redis convention for hierarchical keys (e.g., "chronon:dataset:key")
 
-  // TTL configuration (matching BigTable's 5-day retention)
-  val DataTTLSeconds = 5 * 24 * 60 * 60 // 5 days
+  // TTL configuration
+  val DataTTLSeconds = 5 * 24 * 60 * 60 // 5 days - matches BigTable retention, provides incident buffer before expiry
 
-  // Connection pool defaults
-  val DefaultMaxConnections = 50
-  val DefaultMinIdleConnections = 5
-  val DefaultMaxIdleConnections = 10
-  val DefaultConnectionTimeoutMs = 5000
+  // Connection pool defaults (Commons Pool2 best practices)
+  val DefaultMaxConnections = 50 // Production-ready default (Jedis default of 8 is too low)
+  val DefaultMinIdleConnections = 5 // Keep connections warm to avoid cold-start latency
+  val DefaultMaxIdleConnections = 10 // Balance between responsiveness and resource usage
+  val DefaultConnectionTimeoutMs = 5000 // TCP connection timeout - allows for cluster topology discovery
   val DefaultPort = 6379
 
   // Pagination defaults
-  val DefaultListLimit = 100
+  val DefaultListLimit = 100 // Matches BigTable implementation, balances network efficiency and memory
 
   // Redis Cluster configuration
-  val DefaultMaxRedirections = 5
-  val DefaultSoTimeoutMs = 2000
+  val DefaultMaxRedirections = 5 // Matches Jedis default, protects against redirect loops during rebalancing
+  val DefaultSoTimeoutMs = 2000 // Socket timeout for Redis commands (typical P99 < 10ms, 2s allows for network jitter)
 
   // Environment variable keys for Redis Cluster
   val EnvRedisClusterNodes = "REDIS_CLUSTER_NODES" // Comma-separated: "node1:6379,node2:6379,node3:6379"

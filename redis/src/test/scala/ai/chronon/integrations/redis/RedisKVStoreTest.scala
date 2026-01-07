@@ -823,13 +823,13 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
     val kvStore = new RedisKVStoreImpl(jedisCluster)
     kvStore.create(dataset)
 
-    val key = "user122"
-    val value = """{"ir": "batch_snapshot"}"""
-    val putReq = PutRequest(key.getBytes, value.getBytes, dataset, None)
+    val key = "users"
+    val value = "{\"name\": \"alice\", \"age\": 30}".getBytes
+    val putReq = PutRequest(key.getBytes, value, dataset, None)
     Await.result(kvStore.multiPut(Seq(putReq)), 10.seconds)
 
-    // Verify the key was created with hash tags
-    val expectedKey = s"chronon:$dataset:{${java.util.Base64.getEncoder.encodeToString(key.getBytes)}}"
+    // Verify the key was created with hash tags (dataset:base64_key format)
+    val expectedKey = s"chronon:{$dataset:${java.util.Base64.getEncoder.encodeToString(key.getBytes)}}"
     val storedValue = jedisCluster.get(expectedKey.getBytes(StandardCharsets.UTF_8))
     storedValue should not be null
     storedValue.length should be > 8 // Has timestamp prefix
@@ -848,10 +848,10 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
     val putReq = PutRequest(serializedTileKey, value.getBytes, dataset, Some(timestamp))
     Await.result(kvStore.multiPut(Seq(putReq)), 10.seconds)
 
-    // Verify the key was created with hash tags
+    // Verify the key was created with hash tags (dataset:base64_key format)
     val base64Key = java.util.Base64.getEncoder.encodeToString(key.getBytes)
     val dayTs = timestamp - (timestamp % (24 * 3600 * 1000))
-    val expectedKey = s"chronon:$dataset:{$base64Key}:$dayTs:${1.hour.toMillis}"
+    val expectedKey = s"chronon:{$dataset:$base64Key}:$dayTs:${1.hour.toMillis}"
 
     // Check that the sorted set exists
     val members = jedisCluster.zrangeByScore(expectedKey.getBytes(StandardCharsets.UTF_8), timestamp.toDouble, timestamp.toDouble)
@@ -881,10 +881,10 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
     val streamPutReq = PutRequest(serializedTileKey, streamValue.getBytes, streamingDataset, Some(timestamp))
     Await.result(kvStore.multiPut(Seq(streamPutReq)), 10.seconds)
 
-    // Verify both keys use same hash tag (would be on same cluster node in real cluster)
-    val batchKey = s"chronon:$batchDataset:{$base64Key}"
+    // Verify both keys use different hash tags (different nodes in real cluster to prevent hotkey amplification)
+    val batchKey = s"chronon:{$batchDataset:$base64Key}"
     val dayTs = timestamp - (timestamp % (24 * 3600 * 1000))
-    val streamKey = s"chronon:$streamingDataset:{$base64Key}:$dayTs:${1.hour.toMillis}"
+    val streamKey = s"chronon:{$streamingDataset:$base64Key}:$dayTs:${1.hour.toMillis}"
 
     // Both keys should exist
     val batchExists = jedisCluster.exists(batchKey.getBytes(StandardCharsets.UTF_8))
@@ -892,10 +892,10 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
     batchExists shouldBe true
     streamExists shouldBe true
 
-    // In a real cluster, these would hash to the same slot
-    // For now, just verify the hash tag syntax is correct
-    batchKey should include(s"{$base64Key}")
-    streamKey should include(s"{$base64Key}")
+    // With {dataset:base64_key} hash tags, batch and streaming for same entity distribute across nodes
+    // This prevents hotkey amplification when popular entities appear in multiple datasets
+    batchKey should include(s"{$batchDataset:$base64Key}")
+    streamKey should include(s"{$streamingDataset:$base64Key}")
   }
 
   it should "support multi-day queries with hash tags for same entity" in {
@@ -925,7 +925,7 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
     val base64Key = java.util.Base64.getEncoder.encodeToString(entityKey.getBytes)
     val allKeysHaveSameHashTag = Seq(day1, day2, day3).forall { day =>
       val dayStart = day - (day % (24 * 3600 * 1000))
-      val key = s"chronon:$dataset:{$base64Key}:$dayStart"
+      val key = s"chronon:{$dataset:$base64Key}:$dayStart"
       jedisCluster.exists(key.getBytes(StandardCharsets.UTF_8))
     }
     allKeysHaveSameHashTag shouldBe true
@@ -1014,9 +1014,9 @@ class RedisKVStoreTest extends AnyFlatSpec with BeforeAndAfterAll with Matchers 
       value50 should include("{\"feature1\": 50")
       value100 should include("{\"feature1\": 100")
 
-      // Verify hash tags were used in keys
+      // Verify hash tags were used in keys (dataset:base64_key format)
       val base64Key1 = java.util.Base64.getEncoder.encodeToString("user1".getBytes)
-      val expectedKey1 = s"chronon:$batchDataset:{$base64Key1}"
+      val expectedKey1 = s"chronon:{$batchDataset:$base64Key1}"
       jedisCluster.exists(expectedKey1.getBytes(StandardCharsets.UTF_8)) shouldBe true
 
     } finally {

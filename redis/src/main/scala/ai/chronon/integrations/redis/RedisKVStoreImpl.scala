@@ -14,7 +14,7 @@ import redis.clients.jedis.resps.{ScanResult, Tuple}
 
 import java.nio.charset.StandardCharsets
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
@@ -104,39 +104,59 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
     Future {
       try {
         val startTs = System.currentTimeMillis()
-        val responses = requests.map { request =>
-          val timedValues = (startTsMillis, tableType) match {
-            case (Some(startTs), TileSummaries) =>
-              // Time-series data with sorted sets
-              val endTs = endTsMillis.getOrElse(System.currentTimeMillis())
-              getTimeSeriesData(jedisCluster, request.keyBytes, dataset, startTs, endTs, None, keyPrefix)
-            case (Some(startTs), StreamingTable) =>
-              // Tiled streaming data
-              val endTs = endTsMillis.getOrElse(System.currentTimeMillis())
+
+        val responses: Seq[GetResponse] = tableType match {
+          case BatchTable =>
+            val pipeline = jedisCluster.pipelined()
+            val pipelinedGets = requests.map { request =>
+              val redisKey = buildRedisKey(request.keyBytes, dataset, keyPrefix = keyPrefix)
+              (request, pipeline.get(redisKey.getBytes(StandardCharsets.UTF_8)))
+            }
+            pipeline.sync()
+
+            pipelinedGets.map { case (request, response) =>
+              val timedValues = Try {
+                val storedBytes = response.get()
+                if (storedBytes != null && storedBytes.length >= 8) {
+                  val timestamp = java.nio.ByteBuffer.wrap(storedBytes.take(8)).getLong
+                  val valueBytes = storedBytes.drop(8)
+                  Seq(TimedValue(valueBytes, timestamp))
+                } else if (storedBytes != null) {
+                  logger.warn(s"Malformed data in Redis: key has ${storedBytes.length} bytes, expected >= 8")
+                  Seq.empty
+                } else {
+                  Seq.empty
+                }
+              }
+              GetResponse(request, timedValues)
+            }
+
+          case TileSummaries if startTsMillis.isDefined =>
+            val reqStartTs = startTsMillis.get
+            val endTs = endTsMillis.getOrElse(System.currentTimeMillis())
+            requests.map { request =>
+              val timedValues =
+                Try(getTimeSeriesData(jedisCluster, request.keyBytes, dataset, reqStartTs, endTs, None, keyPrefix))
+              GetResponse(request, timedValues)
+            }
+
+          case StreamingTable if startTsMillis.isDefined =>
+            val reqStartTs = startTsMillis.get
+            val endTs = endTsMillis.getOrElse(System.currentTimeMillis())
+            requests.map { request =>
               val tileKey = TilingUtils.deserializeTileKey(request.keyBytes)
               val tileSizeMs = tileKey.tileSizeMillis
               val baseKeyBytes = tileKey.keyBytes.asScala.map(_.toByte).toSeq
-              getTimeSeriesData(jedisCluster, baseKeyBytes, dataset, startTs, endTs, Some(tileSizeMs), keyPrefix)
-            case _ =>
-              // Simple key-value: value is stored with 8-byte timestamp prefix
-              // All data is written with this prefix
-              val redisKey = buildRedisKey(request.keyBytes, dataset, keyPrefix = keyPrefix)
-              val storedBytes = jedisCluster.get(redisKey.getBytes(StandardCharsets.UTF_8))
-              if (storedBytes != null && storedBytes.length >= 8) {
-                // Extract timestamp (first 8 bytes) and value (remaining bytes)
-                val timestamp = java.nio.ByteBuffer.wrap(storedBytes.take(8)).getLong
-                val valueBytes = storedBytes.drop(8)
-                Seq(TimedValue(valueBytes, timestamp))
-              } else if (storedBytes != null) {
-                // Data exists but is malformed (< 8 bytes) - should never happen
-                logger.warn(s"Malformed data in Redis: key has ${storedBytes.length} bytes, expected >= 8")
-                Seq.empty
-              } else {
-                Seq.empty
-              }
-          }
-          GetResponse(request, Success(timedValues))
+              val timedValues = Try(
+                getTimeSeriesData(jedisCluster, baseKeyBytes, dataset, reqStartTs, endTs, Some(tileSizeMs), keyPrefix))
+              GetResponse(request, timedValues)
+            }
+
+          case _ =>
+            // Should not happen: non-batch tables without a time range.
+            requests.map(req => GetResponse(req, Success(Seq.empty)))
         }
+
         datasetMetricsContext.distribution("multiGet.latency", System.currentTimeMillis() - startTs)
         datasetMetricsContext.increment("multiGet.successes")
         responses
@@ -144,9 +164,7 @@ class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = M
         case e: Exception =>
           logger.error("Error getting values from Redis Cluster", e)
           datasetMetricsContext.increment("multiGet.redis_errors", Map("exception" -> e.getClass.getName))
-          requests.map { request =>
-            GetResponse(request, Failure(e))
-          }
+          requests.map(req => GetResponse(req, Failure(e)))
       }
     }
   }
@@ -455,8 +473,8 @@ object RedisKVStore {
                     keyPrefix: String = DefaultKeyPrefix): String = {
     val base64Key = java.util.Base64.getEncoder.encodeToString(baseKeyBytes.toArray)
     val prefix = if (keyPrefix.isEmpty) "" else s"$keyPrefix$KeySeparator"
-    // Use hash tag {base64Key} to ensure all entity data lands on same cluster node
-    val baseKey = s"$prefix$dataset$KeySeparator{$base64Key}"
+    // Use hash tag {dataset:base64Key} to distribute load across cluster nodes
+    val baseKey = s"$prefix{$dataset$KeySeparator$base64Key}"
     maybeTs match {
       case Some(ts) =>
         // For time series data, append the day timestamp
@@ -478,8 +496,8 @@ object RedisKVStore {
     val base64Key = java.util.Base64.getEncoder.encodeToString(baseKeyBytes.toArray)
     val dayTs = ts - (ts % 1.day.toMillis)
     val prefix = if (keyPrefix.isEmpty) "" else s"$keyPrefix$KeySeparator"
-    // Use hash tag {base64Key} to ensure all tiles for entity land on same cluster node
-    s"$prefix$dataset$KeySeparator{$base64Key}$KeySeparator$dayTs$KeySeparator$tileSizeMs"
+    // Use hash tag {dataset:base64Key} to distribute load across cluster nodes
+    s"$prefix{$dataset$KeySeparator$base64Key}$KeySeparator$dayTs$KeySeparator$tileSizeMs"
   }
 
   /** Determine table type from dataset name.
