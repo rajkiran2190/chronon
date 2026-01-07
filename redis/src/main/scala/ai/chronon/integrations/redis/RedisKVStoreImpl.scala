@@ -19,20 +19,39 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
-/** Redis Cluster-based KV store implementation with hash tags.
+/** Redis Cluster-based KV store implementation with hash tags for load distribution.
+  *
   * We store a few kinds of data in our KV store:
   * 1) Entity data - Configuration data like thrift serialized GroupBy / Join configs.
   * 2) Timeseries data - Batch IRs or streaming tiles for feature fetching.
   *
-  * Key structure (with hash tags for cluster co-location):
-  * - Batch IRs: chronon:{dataset}:{base64_key} (stored as strings with 8-byte timestamp prefix)
-  * - Time-series: chronon:{dataset}:{base64_key}:{dayTs} (stored as sorted sets)
-  * Hash tags {base64_key} ensure all data for an entity lands on the same cluster node,
-  * enabling efficient pipelining for multi-day queries and co-locating batch IR with streaming tiles.
+  * Key structure (with hash tags to prevent hotkey amplification):
+  * - Batch IRs: chronon:<hash_tag> where hash_tag = {dataset:base64_key}
+  * - Time-series: chronon:<hash_tag>:dayTs where hash_tag = {dataset:base64_key}
+  *   (stored as sorted sets)
+  *
+  * The hash tag portion between curly braces determines which Redis cluster node stores the data.
+  * Including both dataset AND base64_key in the hash tag ensures:
+  * 1. All time-series data for same (dataset, entity) lands on same node → efficient multi-day queries
+  * 2. Different datasets for same entity distribute across nodes → prevents hotkey amplification
+  *
+  * Why include dataset in hash tag?
+  * Production experience at Airbnb (per Nikhil) showed that popular entity IDs caused severe
+  * node hotspotting when only the entity key was hashed.
+  *
+  * Example: A trending entity "user_12345" appears as the primary key in 50 different GroupBys:
+  *   - user_engagement_features (user_12345)
+  *   - user_recommendation_scores (user_12345)
+  *   - user_abuse_signals (user_12345)
+  *   - ... 47 more feature GroupBys
+  *
+  * Trade-off: multiGet for batch+streaming from different datasets hits 2 nodes instead of 1
+  * (~1-2ms extra latency), but this is vastly preferable to node saturation and cascading failures.
   *
   * Time-series data format in sorted sets:
   * - Score: timestamp in milliseconds
-  * - Member: timestamp (8 bytes) + value bytes
+  * - Member: timestamp(8 bytes) + value bytes
+  *
   * Why timestamp prefix in members?
   * In BigTable, cells are uniquely identified by (row, column, timestamp), allowing the same value
   * at different timestamps. Redis sorted sets require unique members - without the prefix,
@@ -42,6 +61,7 @@ import scala.concurrent.duration._
   * Last-Write-Wins (LWW) semantics:
   * Writing to the same timestamp twice deletes the first value via ZREMRANGEBYSCORE before ZADD.
   * This matches BigTable's deleteCells + setCell pattern.
+  *
   * Data is stored with a default TTL of 5 days (matching BigTable implementation).
   */
 class RedisKVStoreImpl(jedisCluster: JedisCluster, conf: Map[String, String] = Map.empty) extends KVStore {
@@ -464,7 +484,14 @@ object RedisKVStore {
   case object TileSummaries extends TableType
 
   /** Build a Redis key with optional timestamp for time-series data.
-    * Key format: [prefix]:{dataset}:{base64_key}[:{dayTs}]
+    *
+    * Key format examples:
+    *   Batch IR:     chronon:{MY_GROUPBY:dXNlcg==}
+    *   Time-series:  chronon:{MY_GROUPBY:dXNlcg==}:1704067200000
+    *
+    * The curly braces denote the hash tag - Redis uses this to determine cluster node placement.
+    * Including dataset in the hash tag prevents hotkey amplification in production.
+    *
     * @param keyPrefix Optional prefix for namespace isolation (can be empty string)
     */
   def buildRedisKey(baseKeyBytes: Seq[Byte],
@@ -485,7 +512,14 @@ object RedisKVStore {
   }
 
   /** Build a Redis key for tiled data.
-    * Key format: [prefix]:{dataset}:{base64_key}:{dayTs}:{tileSize}
+    *
+    * Key format example:
+    *   chronon:{MY_GROUPBY:dXNlcg==}:1704067200000:300000
+    *   where 1704067200000 is dayTs and 300000 is tileSize
+    *
+    * The curly braces denote the hash tag - Redis uses this to determine cluster node placement.
+    * Including dataset in the hash tag prevents hotkey amplification in production.
+    *
     * @param keyPrefix Optional prefix for namespace isolation (can be empty string)
     */
   def buildTiledRedisKey(baseKeyBytes: Seq[Byte],
