@@ -171,7 +171,12 @@ class Average extends SimpleAggregator[Double, Array[Any], Double] {
 // Welford algo for computing variance
 // Traditional sum of squares based formula has serious numerical stability problems
 class WelfordState(ir: Array[Any]) {
-  private def count: Long = ir(0).asInstanceOf[Long]
+  private def count: Long = try { ir(0).asInstanceOf[Long] }
+  catch {
+    // cristian-zlai: used to be an Integer. Adding exception handling to patch inconsistencies.
+    case e: ClassCastException => ir(0).asInstanceOf[Int].toLong
+    case e                     => throw e
+  }
   private def setCount(c: Long): Unit = ir.update(0, c)
   private def mean: Double = ir(1).asInstanceOf[Double]
   private def setMean(m: Double): Unit = ir.update(1, m)

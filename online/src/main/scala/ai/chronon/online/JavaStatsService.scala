@@ -210,8 +210,10 @@ class JavaStatsService(api: Api,
             }
         }
       } match {
-        case Success(response)  => response
-        case Failure(exception) => JavaStatsResponse.failure(exception.getMessage)
+        case Success(response) => response
+        case Failure(exception) =>
+          logger.error("Exception found during response construction", exception)
+          JavaStatsResponse.failure(exception.getMessage)
       }
     }
 
